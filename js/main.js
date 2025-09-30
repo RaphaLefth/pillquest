@@ -756,6 +756,10 @@ class Utils {
           badge: "./icons/icon-96.svg",
           tag: "pill-reminder",
           requireInteraction: true,
+          timestamp: scheduledAt ? new Date(scheduledAt).getTime() : Date.now(),
+          data: {
+            scheduledAt,
+          },
           actions: [
             { action: "take", title: "Tomar Ahora" },
             { action: "snooze", title: "Recordar en 10 min" },
@@ -984,9 +988,14 @@ class ScreenManager {
                               treatment.schedule.length === 1 ? "vez" : "veces"
                             } al día</p>
                                     <small style="color: var(--text-secondary);">
-                                        Próxima: ${treatment.schedule[0]} • ${
-                              treatment.frequency
-                            } días restantes
+                                        Horarios: ${
+                                          Array.isArray(treatment.schedule) &&
+                                          treatment.schedule.length > 0
+                                            ? treatment.schedule.join(", ")
+                                            : "Sin horario"
+                                        } • Duración: ${
+                              treatment.duration || 30
+                            } días
                                     </small>
                                 </div>
                                 <div class="treatment-actions">
@@ -1000,6 +1009,53 @@ class ScreenManager {
                           .join("")}
                     </div>
                 </div>
+
+        <div id="add-treatment-modal" class="modal hidden">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3 class="modal-title">Añadir tratamiento</h3>
+              <button type="button" id="close-add-treatment" class="modal-close" aria-label="Cerrar">
+                &times;
+              </button>
+            </div>
+            <form id="add-treatment-form" class="modal-body">
+              <div class="form-group">
+                <label class="form-label" for="treatment-medication">Medicamento</label>
+                <input id="treatment-medication" name="medication" type="text" class="form-input" placeholder="Nombre del medicamento" required autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="treatment-dosage">Dosis</label>
+                <input id="treatment-dosage" name="dosage" type="text" class="form-input" placeholder="Ej. 1 comprimido" required autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="treatment-frequency">Veces al día</label>
+                <select id="treatment-frequency" name="frequency" class="form-select" required>
+                  <option value="1">1 vez</option>
+                  <option value="2">2 veces</option>
+                  <option value="3">3 veces</option>
+                  <option value="4">4 veces</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="treatment-first-dose">Primera toma</label>
+                <input id="treatment-first-dose" name="firstDose" type="time" class="form-input" required>
+              </div>
+              <div id="treatment-schedule-container"></div>
+              <div class="form-group">
+                <label class="form-label" for="treatment-start-date">Fecha de inicio</label>
+                <input id="treatment-start-date" name="startDate" type="date" class="form-input" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="treatment-duration">Duración (días)</label>
+                <input id="treatment-duration" name="duration" type="number" class="form-input" min="1" max="365" value="30" required>
+              </div>
+              <div class="modal-actions">
+                <button type="button" id="cancel-add-treatment" class="btn btn-outline">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar</button>
+              </div>
+            </form>
+          </div>
+        </div>
             </div>
         `;
   }
@@ -1032,6 +1088,7 @@ class PillQuestApp {
   constructor() {
     this.router = new Router();
     this.screenManager = new ScreenManager();
+    this.notificationTimers = [];
     this.init();
   }
 
@@ -1319,6 +1376,7 @@ class PillQuestApp {
       );
 
       this.setupHomeScreenHandlers(pendingDoses);
+      await this.scheduleNotificationsForUser(currentUser.id);
     } catch (error) {
       Utils.showError("Error cargando pantalla principal");
       console.error("Home screen error:", error);
@@ -1340,11 +1398,285 @@ class PillQuestApp {
     }
 
     // Add treatment button
+    this.setupAddTreatmentModal();
+  }
+
+  setupAddTreatmentModal() {
+    const modal = document.getElementById("add-treatment-modal");
+    const form = document.getElementById("add-treatment-form");
     const addTreatmentBtn = document.getElementById("add-treatment-btn");
-    if (addTreatmentBtn) {
-      addTreatmentBtn.addEventListener("click", () => {
-        Utils.showToast("Funcionalidad próximamente disponible", "warning");
+    const cancelBtn = document.getElementById("cancel-add-treatment");
+    const closeBtn = document.getElementById("close-add-treatment");
+    const frequencySelect = document.getElementById("treatment-frequency");
+    const firstDoseInput = document.getElementById("treatment-first-dose");
+    const scheduleContainer = document.getElementById(
+      "treatment-schedule-container"
+    );
+    const startDateInput = document.getElementById("treatment-start-date");
+    const durationInput = document.getElementById("treatment-duration");
+    const medicationInput = document.getElementById("treatment-medication");
+    const dosageInput = document.getElementById("treatment-dosage");
+
+    if (
+      !modal ||
+      !form ||
+      !addTreatmentBtn ||
+      !frequencySelect ||
+      !firstDoseInput ||
+      !scheduleContainer ||
+      !startDateInput ||
+      !durationInput ||
+      !medicationInput ||
+      !dosageInput
+    ) {
+      return;
+    }
+
+    const renderScheduleInputs = () => {
+      const frequency = parseInt(frequencySelect.value, 10) || 1;
+      const firstDoseValue = firstDoseInput.value || "08:00";
+      const autoSchedule = this.generateSchedule(firstDoseValue, frequency);
+
+      scheduleContainer.innerHTML = "";
+
+      for (let i = 0; i < frequency; i++) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "form-group";
+
+        const label = document.createElement("label");
+        label.className = "form-label";
+        label.setAttribute("for", `schedule-time-${i}`);
+        label.textContent = `Hora ${i + 1}`;
+
+        const input = document.createElement("input");
+        input.type = "time";
+        input.id = `schedule-time-${i}`;
+        input.className = "form-input";
+        input.required = true;
+        input.value = autoSchedule[i] || autoSchedule[autoSchedule.length - 1];
+
+        wrapper.appendChild(label);
+        wrapper.appendChild(input);
+        scheduleContainer.appendChild(wrapper);
+      }
+
+      const firstInput = scheduleContainer.querySelector("input");
+      if (firstInput && firstDoseInput.value) {
+        firstInput.value = firstDoseInput.value;
+      }
+    };
+
+    const closeModal = () => {
+      modal.classList.add("hidden");
+    };
+
+    const openModal = () => {
+      form.reset();
+      firstDoseInput.value = this.getDefaultDoseTime();
+      startDateInput.value = this.getDefaultStartDate();
+      durationInput.value = "30";
+      frequencySelect.value = "1";
+      renderScheduleInputs();
+      modal.classList.remove("hidden");
+      medicationInput.focus();
+    };
+
+    addTreatmentBtn.addEventListener("click", () => {
+      if ("Notification" in window && Notification.permission !== "granted") {
+        Utils.requestNotificationPermission();
+      }
+      openModal();
+    });
+
+    if (cancelBtn) {
+      cancelBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        closeModal();
       });
+    }
+
+    if (closeBtn) {
+      closeBtn.addEventListener("click", closeModal);
+    }
+
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) {
+        closeModal();
+      }
+    });
+
+    frequencySelect.addEventListener("change", renderScheduleInputs);
+    firstDoseInput.addEventListener("change", renderScheduleInputs);
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      if (!currentUser) {
+        Utils.showError("No se ha encontrado el usuario activo");
+        return;
+      }
+
+      const submitButton = form.querySelector('button[type="submit"]');
+      if (submitButton) {
+        submitButton.disabled = true;
+      }
+
+      try {
+        const medicationName = medicationInput.value.trim();
+        const dosage = dosageInput.value.trim();
+        const frequency = parseInt(frequencySelect.value, 10) || 1;
+        const duration = parseInt(durationInput.value, 10) || 30;
+        const startDateValue = startDateInput.value;
+
+        const scheduleInputs = Array.from(
+          scheduleContainer.querySelectorAll('input[type="time"]')
+        );
+        const scheduleTimes = scheduleInputs
+          .map((input) => input.value)
+          .filter(Boolean);
+
+        if (scheduleTimes.length !== frequency) {
+          throw new Error("Completa los horarios de las tomas");
+        }
+
+        const uniqueTimes = Array.from(new Set(scheduleTimes));
+        if (uniqueTimes.length !== scheduleTimes.length) {
+          throw new Error("No se permiten horarios duplicados");
+        }
+
+        uniqueTimes.sort();
+
+        const startDate = startDateValue
+          ? new Date(`${startDateValue}T00:00:00`)
+          : new Date();
+        startDate.setHours(0, 0, 0, 0);
+
+        const treatmentData = {
+          userId: currentUser.id,
+          medicationName,
+          dosage,
+          frequency,
+          schedule: uniqueTimes,
+          duration,
+          startDate: startDate.toISOString(),
+        };
+
+        const treatment = await TreatmentRepository.create(treatmentData);
+
+        const doses = Utils.generateDosesForTreatment(
+          treatment,
+          startDate,
+          duration
+        );
+
+        for (const dose of doses) {
+          try {
+            await DoseRepository.create(dose);
+          } catch (error) {
+            const message =
+              error instanceof Error && error.message
+                ? error.message
+                : String(error);
+            console.warn("Dose skipped during creation:", message);
+          }
+        }
+
+        Utils.showToast("Tratamiento añadido correctamente 🎯");
+        closeModal();
+
+        await this.scheduleNotificationsForUser(currentUser.id);
+        await this.showHomeScreen();
+      } catch (error) {
+        Utils.showError("No se pudo guardar el tratamiento: " + error.message);
+        console.error("Add treatment error:", error);
+      } finally {
+        if (submitButton) {
+          submitButton.disabled = false;
+        }
+      }
+    });
+
+    // Initialize schedule inputs for initial render
+    renderScheduleInputs();
+  }
+
+  getDefaultDoseTime() {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 30);
+    now.setSeconds(0, 0);
+    const roundedMinutes = Math.ceil(now.getMinutes() / 15) * 15;
+    if (roundedMinutes === 60) {
+      now.setHours(now.getHours() + 1);
+      now.setMinutes(0, 0, 0);
+    } else {
+      now.setMinutes(roundedMinutes, 0, 0);
+    }
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    return `${hours}:${minutes}`;
+  }
+
+  getDefaultStartDate() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  clearNotificationTimers() {
+    if (this.notificationTimers && this.notificationTimers.length > 0) {
+      this.notificationTimers.forEach((timerId) => clearTimeout(timerId));
+    }
+    this.notificationTimers = [];
+  }
+
+  async scheduleNotificationsForUser(userId) {
+    if (
+      !("Notification" in window) ||
+      Notification.permission !== "granted" ||
+      !userId
+    ) {
+      return;
+    }
+
+    this.clearNotificationTimers();
+
+    try {
+      const treatments = await TreatmentRepository.getByUserId(userId);
+      const now = Date.now();
+      const windowLimit = now + 24 * 60 * 60 * 1000; // Next 24 hours
+
+      for (const treatment of treatments) {
+        if (!treatment.active) continue;
+
+        const doses = await DoseRepository.getByTreatmentId(treatment.id);
+        doses
+          .filter((dose) => dose.status === "scheduled")
+          .forEach((dose) => {
+            const scheduledTime = new Date(dose.scheduledAt).getTime();
+            if (Number.isNaN(scheduledTime)) return;
+            if (scheduledTime <= now || scheduledTime > windowLimit) return;
+
+            const delay = scheduledTime - now;
+            const timerId = setTimeout(() => {
+              const timeLabel = new Intl.DateTimeFormat("es", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }).format(new Date(dose.scheduledAt));
+
+              Utils.scheduleNotification(
+                `PillQuest • ${dose.medicationName}`,
+                `Toma ${dose.dosage} a las ${timeLabel}`,
+                dose.scheduledAt
+              );
+            }, delay);
+
+            this.notificationTimers.push(timerId);
+          });
+      }
+    } catch (error) {
+      console.error("Error scheduling notifications:", error);
     }
   }
 
@@ -1390,6 +1722,8 @@ class PillQuestApp {
       if (takeNowBtn) {
         takeNowBtn.classList.add("success-flash");
       }
+
+      await this.scheduleNotificationsForUser(currentUser.id);
 
       // Refresh screen
       setTimeout(() => this.showHomeScreen(), 1500);
