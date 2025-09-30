@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PNG Icon Generator</title>
+</head>
+<body>
+    <h1>PillQuest PNG Icon Generator</h1>
+    <p>Generating PNG icons...</p>
+    <div id="status"></div>
+    
+    <script>
+        async function generatePNGIcons() {
+            const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+            const status = document.getElementById('status');
+            
+            for (const size of sizes) {
+                try {
+                    // Create canvas
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = size;
+                    canvas.height = size;
+                    
+                    // Create gradient background
+                    const gradient = ctx.createLinearGradient(0, 0, size, size);
+                    gradient.addColorStop(0, '#4CAF50');
+                    gradient.addColorStop(1, '#2196F3');
+                    
+                    // Draw background with rounded corners
+                    const radius = size * 0.2;
+                    ctx.fillStyle = gradient;
+                    ctx.roundRect(0, 0, size, size, radius);
+                    ctx.fill();
+                    
+                    // Draw pill design
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                    
+                    // Left circle
+                    ctx.beginPath();
+                    ctx.arc(size * 0.3, size * 0.4, size * 0.15, 0, 2 * Math.PI);
+                    ctx.fill();
+                    
+                    // Right circle  
+                    ctx.beginPath();
+                    ctx.arc(size * 0.7, size * 0.4, size * 0.15, 0, 2 * Math.PI);
+                    ctx.fill();
+                    
+                    // Center rectangle
+                    const rectRadius = size * 0.075;
+                    ctx.roundRect(size * 0.2, size * 0.6, size * 0.6, size * 0.15, rectRadius);
+                    ctx.fill();
+                    
+                    // Add emoji if size is large enough
+                    if (size >= 96) {
+                        ctx.font = `${size * 0.2}px Arial`;
+                        ctx.textAlign = 'center';
+                        ctx.fillStyle = 'white';
+                        ctx.fillText('💊', size * 0.5, size * 0.85);
+                    }
+                    
+                    // Convert to PNG and download
+                    canvas.toBlob(function(blob) {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `icon-${size}.png`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        
+                        status.innerHTML += `<p>✅ Generated icon-${size}.png</p>`;
+                    }, 'image/png');
+                    
+                    // Small delay between generations
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                } catch (error) {
+                    console.error(`Error generating ${size}px icon:`, error);
+                    status.innerHTML += `<p>❌ Failed to generate icon-${size}.png</p>`;
+                }
+            }
+            
+            status.innerHTML += '<p><strong>All icons generated! Replace the SVG files in your icons folder.</strong></p>';
+        }
+        
+        // Add roundRect polyfill for older browsers
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radius) {
+                this.beginPath();
+                this.moveTo(x + radius, y);
+                this.lineTo(x + width - radius, y);
+                this.quadraticCurveTo(x + width, y, x + width, y + radius);
+                this.lineTo(x + width, y + height - radius);
+                this.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+                this.lineTo(x + radius, y + height);
+                this.quadraticCurveTo(x, y + height, x, y + height - radius);
+                this.lineTo(x, y + radius);
+                this.quadraticCurveTo(x, y, x + radius, y);
+                this.closePath();
+            };
+        }
+        
+        // Start generation when page loads
+        window.onload = generatePNGIcons;
+    </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+<svg width="192" height="192" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="gradient192" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#2196F3;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+    <rect width="192" height="192" fill="url(#gradient192)" rx="38"/>
+    <circle cx="58" cy="77" r="29" fill="white" opacity="0.9"/>
+    <circle cx="134" cy="77" r="29" fill="white" opacity="0.9"/>
+    <rect x="38" y="115" width="115" height="29" fill="white" opacity="0.9" rx="14"/>
+    <text x="96" y="170" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="bold" fill="white">💊</text>
+</svg>

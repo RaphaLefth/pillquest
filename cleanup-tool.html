@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PillQuest - Limpiador de Datos</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #E8F5E8;
+            color: #2E7D32;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(76, 175, 80, 0.2);
+        }
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+            margin-bottom: 30px;
+        }
+        .action-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #E0E0E0;
+            border-radius: 8px;
+            background: #F9F9F9;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45A049;
+        }
+        .danger {
+            background: #F44336;
+        }
+        .danger:hover {
+            background: #D32F2F;
+        }
+        .log {
+            background: #f5f5f5;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .status {
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin: 5px 0;
+            font-weight: bold;
+        }
+        .success { background: #C8E6C9; color: #2E7D32; }
+        .error { background: #FFCDD2; color: #C62828; }
+        .warning { background: #FFE0B2; color: #EF6C00; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💊 PillQuest - Limpiador de Datos</h1>
+        <p style="text-align: center; color: #666;">Herramientas para limpiar y resetear la aplicación</p>
+        
+        <div class="action-section">
+            <h3>🗄️ Base de Datos</h3>
+            <div id="db-status" class="status">Verificando estado...</div>
+            <button onclick="checkDatabase()">Verificar Base de Datos</button>
+            <button onclick="clearDatabase()" class="danger">Limpiar Base de Datos</button>
+            <button onclick="resetDatabase()" class="danger">Reset Completo</button>
+        </div>
+        
+        <div class="action-section">
+            <h3>💾 Cache del Navegador</h3>
+            <button onclick="clearCache()">Limpiar Cache</button>
+            <button onclick="clearLocalStorage()">Limpiar LocalStorage</button>
+            <button onclick="clearAllStorage()" class="danger">Limpiar Todo el Storage</button>
+        </div>
+        
+        <div class="action-section">
+            <h3>🔄 Service Worker</h3>
+            <button onclick="unregisterServiceWorker()">Desregistrar Service Worker</button>
+            <button onclick="updateServiceWorker()">Forzar Actualización</button>
+        </div>
+        
+        <div class="action-section">
+            <h3>🚀 Acciones Rápidas</h3>
+            <button onclick="fullReset()" class="danger">RESET COMPLETO</button>
+            <button onclick="window.open('/', '_blank')">Abrir App</button>
+            <button onclick="window.open('/test-validator.html', '_blank')">Ejecutar Tests</button>
+        </div>
+        
+        <div class="action-section">
+            <h3>📋 Log de Operaciones</h3>
+            <div id="log" class="log">Esperando operaciones...</div>
+            <button onclick="clearLog()">Limpiar Log</button>
+        </div>
+    </div>
+
+    <script>
+        let logEntries = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logEntries.push(`[${timestamp}] ${message}`);
+            updateLogDisplay();
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        function updateLogDisplay() {
+            const logEl = document.getElementById('log');
+            logEl.innerHTML = logEntries.join('\n');
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function clearLog() {
+            logEntries = [];
+            updateLogDisplay();
+        }
+        
+        function updateStatus(message, type) {
+            const statusEl = document.getElementById('db-status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+        
+        async function checkDatabase() {
+            log('Verificando estado de la base de datos...');
+            
+            try {
+                const databases = await indexedDB.databases();
+                const pillQuestDB = databases.find(db => db.name === 'PillQuestDB');
+                
+                if (!pillQuestDB) {
+                    updateStatus('Base de datos no encontrada', 'warning');
+                    log('PillQuestDB no existe');
+                    return;
+                }
+                
+                // Abrir base de datos para verificar stores
+                const request = indexedDB.open('PillQuestDB');
+                
+                request.onsuccess = () => {
+                    const db = request.result;
+                    const stores = Array.from(db.objectStoreNames);
+                    const requiredStores = ['users', 'treatments', 'doses', 'user_stats', 'achievements'];
+                    const missing = requiredStores.filter(store => !stores.includes(store));
+                    
+                    if (missing.length === 0) {
+                        updateStatus(`Base de datos OK - ${stores.length} stores`, 'success');
+                        log(`Base de datos válida con stores: ${stores.join(', ')}`);
+                    } else {
+                        updateStatus(`Faltan stores: ${missing.join(', ')}`, 'error');
+                        log(`Stores faltantes: ${missing.join(', ')}`);
+                    }
+                    
+                    db.close();
+                };
+                
+                request.onerror = () => {
+                    updateStatus('Error al abrir base de datos', 'error');
+                    log('Error abriendo base de datos: ' + request.error);
+                };
+                
+            } catch (error) {
+                updateStatus('Error verificando base de datos', 'error');
+                log('Error: ' + error.message);
+            }
+        }
+        
+        async function clearDatabase() {
+            if (!confirm('¿Estás seguro de que quieres limpiar la base de datos? Se perderán todos los datos.')) {
+                return;
+            }
+            
+            log('Limpiando base de datos...');
+            
+            try {
+                await new Promise((resolve, reject) => {
+                    const deleteRequest = indexedDB.deleteDatabase('PillQuestDB');
+                    deleteRequest.onsuccess = () => {
+                        log('Base de datos eliminada exitosamente');
+                        updateStatus('Base de datos eliminada', 'success');
+                        resolve();
+                    };
+                    deleteRequest.onerror = () => reject(deleteRequest.error);
+                });
+            } catch (error) {
+                log('Error eliminando base de datos: ' + error.message);
+                updateStatus('Error eliminando base de datos', 'error');
+            }
+        }
+        
+        async function resetDatabase() {
+            if (!confirm('¿Reset completo de la base de datos? Se recreará desde cero.')) {
+                return;
+            }
+            
+            await clearDatabase();
+            
+            // Esperar un poco y luego verificar
+            setTimeout(() => {
+                log('Iniciando recreación de base de datos...');
+                log('Recarga la página principal para recrear la base de datos');
+                updateStatus('Listo para recrear - recarga la app', 'warning');
+            }, 1000);
+        }
+        
+        async function clearCache() {
+            log('Limpiando cache del navegador...');
+            
+            try {
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(
+                        cacheNames.map(cacheName => {
+                            log(`Eliminando cache: ${cacheName}`);
+                            return caches.delete(cacheName);
+                        })
+                    );
+                    log(`Eliminados ${cacheNames.length} caches`);
+                } else {
+                    log('Cache API no soportada');
+                }
+            } catch (error) {
+                log('Error limpiando cache: ' + error.message);
+            }
+        }
+        
+        function clearLocalStorage() {
+            log('Limpiando LocalStorage...');
+            
+            try {
+                const keys = Object.keys(localStorage);
+                localStorage.clear();
+                log(`Eliminadas ${keys.length} entradas de localStorage`);
+            } catch (error) {
+                log('Error limpiando localStorage: ' + error.message);
+            }
+        }
+        
+        function clearAllStorage() {
+            log('Limpiando todo el storage...');
+            
+            clearLocalStorage();
+            
+            try {
+                sessionStorage.clear();
+                log('SessionStorage limpiado');
+            } catch (error) {
+                log('Error limpiando sessionStorage: ' + error.message);
+            }
+            
+            clearCache();
+        }
+        
+        async function unregisterServiceWorker() {
+            log('Desregistrando Service Worker...');
+            
+            try {
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    
+                    for (const registration of registrations) {
+                        await registration.unregister();
+                        log('Service Worker desregistrado: ' + registration.scope);
+                    }
+                    
+                    log(`Desregistrados ${registrations.length} service workers`);
+                } else {
+                    log('Service Worker no soportado');
+                }
+            } catch (error) {
+                log('Error desregistrando Service Worker: ' + error.message);
+            }
+        }
+        
+        async function updateServiceWorker() {
+            log('Forzando actualización de Service Worker...');
+            
+            try {
+                if ('serviceWorker' in navigator) {
+                    const registration = await navigator.serviceWorker.getRegistration();
+                    if (registration) {
+                        await registration.update();
+                        log('Service Worker actualizado');
+                    } else {
+                        log('No hay Service Worker registrado');
+                    }
+                }
+            } catch (error) {
+                log('Error actualizando Service Worker: ' + error.message);
+            }
+        }
+        
+        async function fullReset() {
+            if (!confirm('¿RESET COMPLETO? Esto eliminará TODOS los datos, cache, y service workers.')) {
+                return;
+            }
+            
+            log('=== INICIANDO RESET COMPLETO ===');
+            
+            await clearDatabase();
+            clearAllStorage();
+            await unregisterServiceWorker();
+            
+            log('=== RESET COMPLETO FINALIZADO ===');
+            log('Recarga la página principal para empezar de cero');
+            updateStatus('Reset completo - recarga la app', 'success');
+        }
+        
+        // Verificar estado inicial
+        window.onload = checkDatabase;
+    </script>
+</body>
+</html>

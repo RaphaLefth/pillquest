@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>PillQuest Icon Generator</title>
+</head>
+<body>
+    <script>
+    // Generate SVG icons for PillQuest PWA
+    function generateIcon(size) {
+        const svg = `
+        <svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#2196F3;stop-opacity:1" />
+                </linearGradient>
+            </defs>
+            <rect width="${size}" height="${size}" fill="url(#gradient)" rx="${size * 0.2}"/>
+            <circle cx="${size * 0.3}" cy="${size * 0.4}" r="${size * 0.15}" fill="white" opacity="0.9"/>
+            <circle cx="${size * 0.7}" cy="${size * 0.4}" r="${size * 0.15}" fill="white" opacity="0.9"/>
+            <rect x="${size * 0.2}" y="${size * 0.6}" width="${size * 0.6}" height="${size * 0.15}" fill="white" opacity="0.9" rx="${size * 0.075}"/>
+            <text x="${size * 0.5}" y="${size * 0.85}" text-anchor="middle" font-family="Arial, sans-serif" font-size="${size * 0.12}" font-weight="bold" fill="white">P</text>
+        </svg>
+        `;
+        return svg;
+    }
+
+    // Generate and save icons
+    const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+    sizes.forEach(size => {
+        const svg = generateIcon(size);
+        const blob = new Blob([svg], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
+        
+        // Create canvas and convert to PNG
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        canvas.width = size;
+        canvas.height = size;
+        
+        img.onload = function() {
+            ctx.drawImage(img, 0, 0);
+            
+            // Create download link
+            canvas.toBlob(function(blob) {
+                const link = document.createElement('a');
+                link.download = `icon-${size}.png`;
+                link.href = URL.createObjectURL(blob);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }, 'image/png');
+        };
+        
+        img.src = url;
+    });
+    </script>
+    
+    <h1>PillQuest Icon Generator</h1>
+    <p>Run this page to download all required PWA icons.</p>
+</body>
+</html>

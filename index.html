@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4CAF50">
+    <title>PillQuest - Gamifica tu Medicación</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="icon" href="./icons/icon-192.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="./icons/icon-192.svg">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="PillQuest">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+    <!-- Main App Container -->
+    <div id="app">
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="loading-screen">
+            <div class="pill-avatar">💊</div>
+            <h2>PillQuest</h2>
+            <div class="loading-spinner"></div>
+        </div>
+        
+        <!-- Error Overlay -->
+        <div id="error-overlay" class="error-overlay hidden">
+            <div class="error-content">
+                <h3>Oops! Algo salió mal</h3>
+                <p id="error-message"></p>
+                <button id="error-retry" class="btn-primary">Reintentar</button>
+            </div>
+        </div>
+        
+        <!-- Toast Notifications -->
+        <div id="toast-container" class="toast-container"></div>
+        
+        <!-- Screen Container -->
+        <div id="screen-container" class="screen-container hidden">
+            <!-- Dynamic content will be rendered here -->
+        </div>
+        
+        <!-- Navigation (Hidden on register screen) -->
+        <nav id="bottom-nav" class="bottom-nav hidden">
+            <button class="nav-item" data-screen="home">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-label">Inicio</span>
+            </button>
+            <button class="nav-item" data-screen="rewards">
+                <span class="nav-icon">🏆</span>
+                <span class="nav-label">Logros</span>
+            </button>
+            <button class="nav-item" data-screen="shop">
+                <span class="nav-icon">🛍️</span>
+                <span class="nav-label">Tienda</span>
+            </button>
+            <button class="nav-item" data-screen="table">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Historial</span>
+            </button>
+            <button class="nav-item" data-screen="settings">
+                <span class="nav-icon">⚙️</span>
+                <span class="nav-label">Ajustes</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Scripts -->
+    <script src="./js/main.js"></script>
+</body>
+</html>

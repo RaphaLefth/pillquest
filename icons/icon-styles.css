@@ -1,0 +1,45 @@
+/* Simple CSS-based icon placeholder */
+.icon-placeholder {
+    width: var(--size, 72px);
+    height: var(--size, 72px);
+    background: linear-gradient(135deg, #4CAF50, #2196F3);
+    border-radius: 20%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: calc(var(--size, 72px) * 0.4);
+    font-family: Arial, sans-serif;
+}
+
+/* Pill icon using CSS */
+.pill-icon {
+    width: var(--size, 72px);
+    height: var(--size, 72px);
+    background: linear-gradient(135deg, #4CAF50, #2196F3);
+    border-radius: 50px;
+    position: relative;
+    overflow: hidden;
+}
+
+.pill-icon::before {
+    content: '';
+    position: absolute;
+    top: 20%;
+    left: 20%;
+    right: 20%;
+    bottom: 20%;
+    background: white;
+    border-radius: 50%;
+    opacity: 0.9;
+}
+
+.pill-icon::after {
+    content: '💊';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: calc(var(--size, 72px) * 0.4);
+}

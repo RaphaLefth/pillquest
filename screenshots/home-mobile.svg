@@ -1,0 +1,17 @@
+<!-- Screenshot placeholder - This would be a real screenshot in production -->
+<svg width="375" height="667" xmlns="http://www.w3.org/2000/svg">
+    <rect width="375" height="667" fill="#E8F5E8"/>
+    <rect x="20" y="50" width="335" height="567" fill="white" rx="12"/>
+    <text x="187" y="100" text-anchor="middle" font-family="Arial" font-size="18" font-weight="bold" fill="#4CAF50">PillQuest</text>
+    <text x="187" y="130" text-anchor="middle" font-family="Arial" font-size="14" fill="#666">Gamifica tu Medicación</text>
+    <circle cx="187" cy="200" r="40" fill="#4CAF50"/>
+    <text x="187" y="210" text-anchor="middle" font-size="30">💊</text>
+    <rect x="40" y="260" width="70" height="60" fill="#f5f5f5" rx="8"/>
+    <rect x="125" y="260" width="70" height="60" fill="#f5f5f5" rx="8"/>
+    <rect x="210" y="260" width="70" height="60" fill="#f5f5f5" rx="8"/>
+    <rect x="295" y="260" width="70" height="60" fill="#f5f5f5" rx="8"/>
+    <circle cx="187" cy="380" r="50" fill="#4CAF50"/>
+    <text x="187" y="390" text-anchor="middle" font-size="16" fill="white">Tomar</text>
+    <rect x="40" y="450" width="295" height="120" fill="#f9f9f9" rx="8"/>
+    <text x="50" y="475" font-family="Arial" font-size="14" font-weight="bold" fill="#333">Mis Tratamientos</text>
+</svg>
