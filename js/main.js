@@ -1036,6 +1036,20 @@ class ScreenManager {
                     </div>
                 </div>
 
+                <!-- Reset Data Button -->
+                <div class="card">
+                    <div class="reset-section">
+                        <div class="reset-info">
+                            <span class="reset-icon">🔄</span>
+                            <div>
+                                <h4>¿Problemas con la app?</h4>
+                                <p>Si la aplicación se queda cargando, puedes restablecer todos los datos</p>
+                            </div>
+                        </div>
+                        <button id="home-reset-btn" class="btn btn-outline danger">Restablecer Datos</button>
+                    </div>
+                </div>
+
         <div id="add-treatment-modal" class="modal hidden">
           <div class="modal-content modal-scrollable">
             <div class="modal-header">
@@ -1127,47 +1141,32 @@ class ScreenManager {
           </div>
         </div>
 
-        <div id="edit-treatment-modal" class="modal hidden">
-          <div class="modal-content modal-scrollable">
+        <!-- Reset Data Modal -->
+        <div id="reset-modal" class="modal hidden">
+          <div class="modal-content">
             <div class="modal-header">
-              <h3 class="modal-title">Editar tratamiento</h3>
-              <button type="button" id="close-edit-treatment" class="modal-close" aria-label="Cerrar">
-                &times;
-              </button>
+              <h3 class="modal-title">⚠️ Restablecer Datos</h3>
+              <button type="button" class="modal-close" onclick="document.getElementById('reset-modal').classList.add('hidden')">&times;</button>
             </div>
-            <form id="edit-treatment-form" class="modal-body">
-              <div class="form-group">
-                <label class="form-label" for="edit-treatment-medication">Medicamento</label>
-                <input id="edit-treatment-medication" name="medication" type="text" class="form-input" placeholder="Nombre del medicamento" required autocomplete="off">
+            <div class="modal-body">
+              <div class="reset-warning">
+                <div class="warning-icon">🚨</div>
+                <h4>¿Estás completamente seguro?</h4>
+                <p>Esta acción eliminará permanentemente:</p>
+                <ul style="text-align: left; margin: 16px 0;">
+                  <li>• Todos tus tratamientos</li>
+                  <li>• Historial de dosis tomadas</li>
+                  <li>• Puntos y monedas ganadas</li>
+                  <li>• Logros desbloqueados</li>
+                  <li>• Configuración personal</li>
+                </ul>
+                <p style="color: var(--error-color); font-weight: 600;">Esta acción NO se puede deshacer.</p>
               </div>
-              <div class="form-group">
-                <label class="form-label" for="edit-treatment-dosage">Dosis</label>
-                <input id="edit-treatment-dosage" name="dosage" type="text" class="form-input" placeholder="Ej. 1 comprimido" required autocomplete="off">
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="edit-treatment-frequency">Veces al día</label>
-                <select id="edit-treatment-frequency" name="frequency" class="form-select" required>
-                  <option value="1">1 vez</option>
-                  <option value="2">2 veces</option>
-                  <option value="3">3 veces</option>
-                  <option value="4">4 veces</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="edit-treatment-first-dose">Primera toma</label>
-                <input id="edit-treatment-first-dose" name="firstDose" type="time" class="form-input" required>
-              </div>
-              <div id="edit-treatment-schedule-container"></div>
-              <div class="form-group">
-                <label class="form-label" for="edit-treatment-duration">Duración (días)</label>
-                <input id="edit-treatment-duration" name="duration" type="number" class="form-input" min="1" max="365" required>
-              </div>
-              <div class="modal-actions">
-                <button type="button" id="cancel-edit-treatment" class="btn btn-outline">Cancelar</button>
-                <button type="button" id="delete-treatment" class="btn btn-danger">Eliminar</button>
-                <button type="submit" class="btn btn-primary">Actualizar</button>
-              </div>
-            </form>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn btn-outline" onclick="document.getElementById('reset-modal').classList.add('hidden')">Cancelar</button>
+              <button type="button" id="confirm-reset" class="btn btn-danger">Sí, eliminar todo</button>
+            </div>
           </div>
         </div>
             </div>
@@ -1210,6 +1209,9 @@ class ScreenManager {
       "🐵",
     ];
 
+    const isDarkMode = localStorage.getItem("theme") === "dark";
+    const isTestMode = localStorage.getItem("testMode") === "true";
+
     return `
       <div class="screen settings-screen">
         <div class="settings-header">
@@ -1245,7 +1247,7 @@ class ScreenManager {
                 </div>
               </div>
               <label class="toggle-switch">
-                <input type="checkbox" checked>
+                <input type="checkbox" id="notifications-toggle" checked>
                 <span class="toggle-slider"></span>
               </label>
             </div>
@@ -1259,7 +1261,25 @@ class ScreenManager {
                 </div>
               </div>
               <label class="toggle-switch">
-                <input type="checkbox">
+                <input type="checkbox" id="dark-mode-toggle" ${
+                  isDarkMode ? "checked" : ""
+                }>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-icon">🧪</span>
+                <div>
+                  <h4>Modo Prueba</h4>
+                  <p>Usar la app sin límites de monedas</p>
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="test-mode-toggle" ${
+                  isTestMode ? "checked" : ""
+                }>
                 <span class="toggle-slider"></span>
               </label>
             </div>
@@ -1273,7 +1293,7 @@ class ScreenManager {
                 </div>
               </div>
               <label class="toggle-switch">
-                <input type="checkbox" checked>
+                <input type="checkbox" id="daily-reminder-toggle" checked>
                 <span class="toggle-slider"></span>
               </label>
             </div>
@@ -1292,11 +1312,11 @@ class ScreenManager {
               </div>
             </button>
             
-            <button class="setting-item-btn danger">
+            <button class="setting-item-btn danger" id="reset-data-btn">
               <span class="setting-icon">🗑️</span>
               <div>
-                <h4>Limpiar Datos</h4>
-                <p>Eliminar todo el historial</p>
+                <h4>Restablecer Datos</h4>
+                <p>Eliminar todo el historial y reiniciar</p>
               </div>
             </button>
           </div>
@@ -1376,6 +1396,35 @@ class ScreenManager {
               <div class="modal-actions">
                 <button type="button" id="cancel-avatar" class="btn btn-outline">Cancelar</button>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reset Data Modal -->
+        <div id="reset-modal" class="modal hidden">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3 class="modal-title">⚠️ Restablecer Datos</h3>
+              <button type="button" class="modal-close" onclick="document.getElementById('reset-modal').classList.add('hidden')">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="reset-warning">
+                <div class="warning-icon">🚨</div>
+                <h4>¿Estás completamente seguro?</h4>
+                <p>Esta acción eliminará permanentemente:</p>
+                <ul style="text-align: left; margin: 16px 0;">
+                  <li>• Todos tus tratamientos</li>
+                  <li>• Historial de dosis tomadas</li>
+                  <li>• Puntos y monedas ganadas</li>
+                  <li>• Logros desbloqueados</li>
+                  <li>• Configuración personal</li>
+                </ul>
+                <p style="color: var(--error-color); font-weight: 600;">Esta acción NO se puede deshacer.</p>
+              </div>
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn btn-outline" onclick="document.getElementById('reset-modal').classList.add('hidden')">Cancelar</button>
+              <button type="button" id="confirm-reset" class="btn btn-danger">Sí, eliminar todo</button>
             </div>
           </div>
         </div>
@@ -1740,6 +1789,9 @@ class PillQuestApp {
       // Setup service worker
       await this.registerServiceWorker();
 
+      // Initialize theme
+      this.initializeTheme();
+
       // Setup routes
       this.setupRoutes();
 
@@ -2064,6 +2116,14 @@ class PillQuestApp {
 
     // Add treatment button
     this.setupAddTreatmentModal();
+
+    // Reset data button
+    const resetBtn = document.getElementById("home-reset-btn");
+    if (resetBtn) {
+      resetBtn.addEventListener("click", () => {
+        document.getElementById("reset-modal").classList.remove("hidden");
+      });
+    }
   }
 
   setupAddTreatmentModal() {
@@ -2490,36 +2550,6 @@ class PillQuestApp {
     }
   }
 
-  setupShopHandlers(stats) {
-    const purchaseButtons = document.querySelectorAll(".purchase-btn");
-
-    purchaseButtons.forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const itemId = btn.dataset.itemId;
-        const itemCost = parseInt(btn.dataset.cost);
-
-        if (stats.totalCoins < itemCost) {
-          Utils.showToast("No tienes suficientes monedas", "warning");
-          return;
-        }
-
-        try {
-          await UserStatsRepository.update(currentUser.id, {
-            totalCoins: stats.totalCoins - itemCost,
-          });
-
-          Utils.showToast(
-            `¡Has comprado ${this.getItemName(itemId)}! 🎉`,
-            "success"
-          );
-          this.showShopScreen(); // Refresh
-        } catch (error) {
-          Utils.showError("Error realizando la compra");
-        }
-      });
-    });
-  }
-
   getItemName(itemId) {
     const items = {
       streak_freeze: "Congelación de Racha",
@@ -2584,6 +2614,9 @@ class PillQuestApp {
     const avatarOptions = document.querySelectorAll(".avatar-option");
     const closeAvatarModal = document.getElementById("close-avatar-modal");
     const cancelAvatarBtn = document.getElementById("cancel-avatar");
+    const darkModeToggle = document.getElementById("dark-mode-toggle");
+    const testModeToggle = document.getElementById("test-mode-toggle");
+    const resetDataBtn = document.getElementById("reset-data-btn");
 
     if (editProfileBtn) {
       editProfileBtn.addEventListener("click", () => {
@@ -2657,113 +2690,118 @@ class PillQuestApp {
       });
     }
 
+    // Dark mode toggle
+    if (darkModeToggle) {
+      darkModeToggle.addEventListener("change", () => {
+        const isDark = darkModeToggle.checked;
+        this.setTheme(isDark ? "dark" : "light");
+        localStorage.setItem("theme", isDark ? "dark" : "light");
+        Utils.showToast(
+          `Modo ${isDark ? "oscuro" : "claro"} activado`,
+          "success"
+        );
+      });
+    }
+
+    // Test mode toggle
+    if (testModeToggle) {
+      testModeToggle.addEventListener("change", () => {
+        const isTest = testModeToggle.checked;
+        localStorage.setItem("testMode", isTest.toString());
+        Utils.showToast(
+          `Modo prueba ${isTest ? "activado" : "desactivado"}`,
+          "success"
+        );
+      });
+    }
+
+    // Reset data button
+    if (resetDataBtn) {
+      resetDataBtn.addEventListener("click", () => {
+        document.getElementById("reset-modal").classList.remove("hidden");
+      });
+    }
+
+    // Confirm reset
+    const confirmResetBtn = document.getElementById("confirm-reset");
+    if (confirmResetBtn) {
+      confirmResetBtn.addEventListener("click", async () => {
+        try {
+          await this.resetAllData();
+          Utils.showToast(
+            "Datos restablecidos correctamente. Recargando aplicación...",
+            "success"
+          );
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        } catch (error) {
+          Utils.showError("Error restableciendo datos: " + error.message);
+        }
+      });
+    }
+
     // Close modals on outside click
     document.addEventListener("click", (e) => {
       const profileModal = document.getElementById("profile-modal");
       const avatarModalEl = document.getElementById("avatar-modal");
+      const resetModal = document.getElementById("reset-modal");
 
       if (e.target === profileModal) {
         profileModal.classList.add("hidden");
       }
       if (e.target === avatarModalEl) {
         avatarModalEl.classList.add("hidden");
+      }
+      if (e.target === resetModal) {
+        resetModal.classList.add("hidden");
       }
     });
   }
 
-  setupSettingsHandlers() {
-    const editProfileBtn = document.getElementById("edit-profile-btn");
-    const avatarModal = document.getElementById("avatar-modal");
-    const changeAvatarBtn = document.getElementById("change-avatar-btn");
-    const profileForm = document.getElementById("profile-form");
-    const avatarOptions = document.querySelectorAll(".avatar-option");
-    const closeAvatarModal = document.getElementById("close-avatar-modal");
-    const cancelAvatarBtn = document.getElementById("cancel-avatar");
+  initializeTheme() {
+    const savedTheme = localStorage.getItem("theme") || "light";
+    this.setTheme(savedTheme);
+  }
 
-    if (editProfileBtn) {
-      editProfileBtn.addEventListener("click", () => {
-        const modal = document.getElementById("profile-modal");
-        if (modal) {
-          modal.classList.remove("hidden");
-          document.getElementById("profile-name").focus();
+  setTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+  }
+
+  isTestModeEnabled() {
+    return localStorage.getItem("testMode") === "true";
+  }
+
+  async resetAllData() {
+    try {
+      // Clear all data from IndexedDB
+      const db = await DatabaseManager.init();
+      const stores = [
+        "users",
+        "treatments",
+        "doses",
+        "user_stats",
+        "achievements",
+      ];
+
+      for (const storeName of stores) {
+        const allRecords = await DatabaseManager.getAll(storeName);
+        for (const record of allRecords) {
+          await DatabaseManager.delete(storeName, record.id);
         }
-      });
-    }
-
-    if (changeAvatarBtn) {
-      changeAvatarBtn.addEventListener("click", () => {
-        avatarModal.classList.remove("hidden");
-      });
-    }
-
-    if (closeAvatarModal) {
-      closeAvatarModal.addEventListener("click", () => {
-        avatarModal.classList.add("hidden");
-      });
-    }
-
-    if (cancelAvatarBtn) {
-      cancelAvatarBtn.addEventListener("click", () => {
-        avatarModal.classList.add("hidden");
-      });
-    }
-
-    avatarOptions.forEach((option) => {
-      option.addEventListener("click", async () => {
-        const newAvatar = option.dataset.avatar;
-        try {
-          await UserRepository.update(currentUser.id, { avatar: newAvatar });
-          currentUser.avatar = newAvatar;
-          Utils.showToast("Avatar actualizado correctamente", "success");
-          avatarModal.classList.add("hidden");
-          this.showSettingsScreen(); // Refresh
-        } catch (error) {
-          Utils.showError("Error actualizando avatar");
-        }
-      });
-    });
-
-    if (profileForm) {
-      profileForm.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        try {
-          const name = document.getElementById("profile-name").value.trim();
-          const email = document.getElementById("profile-email").value.trim();
-          const timezone = document.getElementById("profile-timezone").value;
-
-          if (!name) {
-            Utils.showError("El nombre es obligatorio");
-            return;
-          }
-
-          await UserRepository.update(currentUser.id, {
-            name,
-            email,
-            timezone,
-          });
-          Object.assign(currentUser, { name, email, timezone });
-
-          Utils.showToast("Perfil actualizado correctamente", "success");
-          document.getElementById("profile-modal").classList.add("hidden");
-          this.showSettingsScreen(); // Refresh
-        } catch (error) {
-          Utils.showError("Error actualizando perfil");
-        }
-      });
-    }
-
-    // Close modals on outside click
-    document.addEventListener("click", (e) => {
-      const profileModal = document.getElementById("profile-modal");
-      const avatarModalEl = document.getElementById("avatar-modal");
-
-      if (e.target === profileModal) {
-        profileModal.classList.add("hidden");
       }
-      if (e.target === avatarModalEl) {
-        avatarModalEl.classList.add("hidden");
-      }
-    });
+
+      // Clear localStorage
+      localStorage.clear();
+
+      // Reset current user
+      currentUser = null;
+
+      console.log("All data has been reset");
+    } catch (error) {
+      console.error("Error resetting data:", error);
+      throw error;
+    }
   }
 
   setupShopHandlers(stats) {
@@ -2774,23 +2812,24 @@ class PillQuestApp {
         const itemId = btn.dataset.itemId;
         const itemCost = parseInt(btn.dataset.cost);
 
-        if (stats.totalCoins < itemCost) {
+        if (this.isTestModeEnabled() || stats.totalCoins >= itemCost) {
+          try {
+            if (!this.isTestModeEnabled()) {
+              await UserStatsRepository.update(currentUser.id, {
+                totalCoins: stats.totalCoins - itemCost,
+              });
+            }
+
+            Utils.showToast(
+              `¡Has comprado ${this.getItemName(itemId)}! 🎉`,
+              "success"
+            );
+            this.showShopScreen(); // Refresh
+          } catch (error) {
+            Utils.showError("Error realizando la compra");
+          }
+        } else {
           Utils.showToast("No tienes suficientes monedas", "warning");
-          return;
-        }
-
-        try {
-          await UserStatsRepository.update(currentUser.id, {
-            totalCoins: stats.totalCoins - itemCost,
-          });
-
-          Utils.showToast(
-            `¡Has comprado ${this.getItemName(itemId)}! 🎉`,
-            "success"
-          );
-          this.showShopScreen(); // Refresh
-        } catch (error) {
-          Utils.showError("Error realizando la compra");
         }
       });
     });

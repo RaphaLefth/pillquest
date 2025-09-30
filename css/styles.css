@@ -34,6 +34,22 @@
     --transition-normal: 0.3s ease;
 }
 
+/* Dark theme variables */
+[data-theme="dark"] {
+    --primary-color: #81C784;
+    --secondary-color: #64B5F6;
+    --background-color: #121212;
+    --surface-color: #1E1E1E;
+    --text-primary: #E8F5E9;
+    --text-secondary: #B0B0B0;
+    --text-light: #FFFFFF;
+    --success-color: #81C784;
+    --warning-color: #FFB74D;
+    --error-color: #EF5350;
+    --border-color: #333333;
+    --shadow-color: rgba(0, 0, 0, 0.3);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -1419,9 +1435,67 @@ input:checked + .toggle-slider:before {
     animation: success-flash 0.6s ease;
 }
 
-/* =============================================================================
-   RESPONSIVE DESIGN
-============================================================================= */
+/* Reset Data Section */
+.reset-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+}
+
+.reset-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex: 1;
+}
+
+.reset-icon {
+    font-size: var(--font-size-xl);
+    opacity: 0.7;
+}
+
+.reset-info h4 {
+    margin: 0 0 var(--spacing-xs) 0;
+    color: var(--text-primary);
+    font-size: var(--font-size-md);
+}
+
+.reset-info p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.reset-warning {
+    text-align: center;
+    padding: var(--spacing-md);
+}
+
+.warning-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+}
+
+.reset-warning h4 {
+    color: var(--error-color);
+    margin-bottom: var(--spacing-md);
+    font-size: var(--font-size-lg);
+}
+
+.reset-warning p {
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.reset-warning ul {
+    color: var(--text-secondary);
+    margin: var(--spacing-md) 0;
+}
+
+.reset-warning li {
+    margin-bottom: var(--spacing-xs);
+}
 @media (max-width: 480px) {
     :root {
         --spacing-md: 12px;
