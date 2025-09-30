@@ -1644,10 +1644,12 @@ class ScreenManager {
               <div class="shop-items">
                 ${categoryItems
                   .map((item) => {
+                    // En modo prueba, todo cuesta 0 y está disponible
+                    const actualCost = isTestMode ? 0 : item.cost;
                     const canAfford =
                       isTestMode || stats.totalCoins >= item.cost;
                     return `
-                  <div class="shop-item ${!canAfford ? "disabled" : ""}">
+                  <div class="shop-item">
                     <div class="item-header">
                       <span class="item-icon">${item.icon}</span>
                       <div class="item-info">
@@ -1655,7 +1657,7 @@ class ScreenManager {
                         <p class="item-description">${item.description}</p>
                         ${
                           isTestMode
-                            ? '<small style="color: var(--primary-color); font-weight: 600;">🧪 Modo Prueba - Gratis</small>'
+                            ? '<small style="color: var(--success-color); font-weight: 600;">🧪 GRATIS - Modo Prueba</small>'
                             : ""
                         }
                       </div>
@@ -1663,24 +1665,20 @@ class ScreenManager {
                     <div class="item-footer">
                       <div class="item-cost">
                         <span class="cost-icon">🪙</span>
-                        <span class="cost-amount">${
-                          isTestMode ? "0" : item.cost
-                        }</span>
+                        <span class="cost-amount">${actualCost}</span>
                       </div>
                       <button 
-                        class="btn btn-primary purchase-btn ${
-                          !canAfford ? "disabled" : ""
-                        }" 
+                        class="btn btn-primary purchase-btn" 
                         data-item-id="${item.id}" 
-                        data-cost="${item.cost}"
-                        ${!canAfford ? "disabled" : ""}
+                        data-cost="${actualCost}"
+                        data-original-cost="${item.cost}"
                       >
                         ${
                           isTestMode
-                            ? "Obtener Gratis"
-                            : !canAfford
-                            ? "Sin fondos"
-                            : "Comprar"
+                            ? "🧪 OBTENER GRATIS"
+                            : canAfford
+                            ? "Comprar"
+                            : "Sin fondos"
                         }
                       </button>
                     </div>
@@ -2441,19 +2439,23 @@ class PillQuestApp {
         `¡Excelente! +${APP_CONFIG.POINTS_PER_DOSE} XP, +${APP_CONFIG.COINS_PER_DOSE} monedas 🎉`
       );
 
-      // Show achievement notifications
-      newAchievements.forEach((achievement) => {
+      // Show achievement notifications with confetti
+      newAchievements.forEach((achievement, index) => {
         const achievementData = ACHIEVEMENTS.find(
           (a) => a.id === achievement.achievementId
         );
         if (achievementData) {
           setTimeout(() => {
+            // Mostrar animación de confeti
+            this.showConfettiAnimation();
+
+            // Mostrar toast del logro
             Utils.showToast(
               `🏆 ¡Nuevo logro desbloqueado! ${achievementData.name}`,
               "success",
               4000
             );
-          }, 1000);
+          }, 1000 + index * 500);
         }
       });
 
@@ -2483,9 +2485,11 @@ class PillQuestApp {
         currentUser.id
       );
       const unlockedIds = userAchievements.map((a) => a.achievementId);
+      const isTestMode = localStorage.getItem("testMode") === "true";
 
       let achievementsHtml = ACHIEVEMENTS.map((achievement) => {
-        const unlocked = unlockedIds.includes(achievement.id);
+        // En modo prueba, todos los logros están desbloqueados
+        const unlocked = isTestMode || unlockedIds.includes(achievement.id);
         const userAchievement = userAchievements.find(
           (a) => a.achievementId === achievement.id
         );
@@ -2504,14 +2508,24 @@ class PillQuestApp {
                                   achievement.description
                                 }</p>
                                 ${
-                                  unlocked && userAchievement
-                                    ? `
-                                    <small style="color: var(--success-color); font-weight: 600;">
-                                        ✅ Desbloqueado el ${Utils.formatDate(
-                                          userAchievement.unlockedAt
-                                        )}
-                                    </small>
-                                `
+                                  unlocked
+                                    ? userAchievement
+                                      ? `
+                                        <small style="color: var(--success-color); font-weight: 600;">
+                                            ✅ Desbloqueado el ${Utils.formatDate(
+                                              userAchievement.unlockedAt
+                                            )}
+                                        </small>
+                                      `
+                                      : isTestMode
+                                      ? `
+                                        <small style="color: var(--warning-color); font-weight: 600;">
+                                            🧪 Desbloqueado (Modo Prueba)
+                                        </small>
+                                      `
+                                      : `
+                                        <small style="color: var(--success-color); font-weight: 600;">✅ Desbloqueado</small>
+                                      `
                                     : `
                                     <small style="color: var(--text-secondary);">🔒 Bloqueado</small>
                                 `
@@ -2527,14 +2541,22 @@ class PillQuestApp {
                     <div style="text-align: center; margin-bottom: 24px;">
                         <h1 style="color: var(--text-primary); margin-bottom: 8px;">🏆 Logros</h1>
                         <p style="color: var(--text-secondary);">
-                            ${unlockedIds.length} de ${
-        ACHIEVEMENTS.length
-      } desbloqueados
+                            ${
+                              isTestMode
+                                ? ACHIEVEMENTS.length
+                                : unlockedIds.length
+                            } de ${ACHIEVEMENTS.length} desbloqueados ${
+        isTestMode ? "(🧪 Modo Prueba)" : ""
+      }
                         </p>
                         <div style="background: var(--border-color); height: 8px; border-radius: 4px; margin: 16px 0; overflow: hidden;">
-                            <div style="background: var(--primary-color); height: 100%; width: ${
-                              (unlockedIds.length / ACHIEVEMENTS.length) * 100
-                            }%; transition: width 0.3s ease;"></div>
+                            <div style="background: ${
+                              isTestMode
+                                ? "var(--warning-color)"
+                                : "var(--primary-color)"
+                            }; height: 100%; width: ${
+        isTestMode ? 100 : (unlockedIds.length / ACHIEVEMENTS.length) * 100
+      }%; transition: width 0.3s ease;"></div>
                         </div>
                     </div>
                     ${achievementsHtml}
@@ -2740,11 +2762,15 @@ class PillQuestApp {
     // Confirm reset
     const confirmResetBtn = document.getElementById("confirm-reset");
     if (confirmResetBtn) {
-      confirmResetBtn.addEventListener("click", async () => {
+      confirmResetBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log("🔄 Botón de reset clickeado");
+
         try {
-          Utils.showToast("Restableciendo datos...", "info");
           await this.resetAllData();
         } catch (error) {
+          console.error("❌ Error en resetAllData:", error);
           Utils.showError("Error restableciendo datos: " + error.message);
         }
       });
@@ -2781,76 +2807,129 @@ class PillQuestApp {
     return localStorage.getItem("testMode") === "true";
   }
 
+  showConfettiAnimation() {
+    // Crear elemento de confeti
+    const confettiContainer = document.createElement("div");
+    confettiContainer.className = "confetti-container";
+    confettiContainer.innerHTML = `
+      <div class="confetti-overlay">
+        ${"🎉🎊✨🌟💫⭐🎈🎁🏆🥳"
+          .split("")
+          .map(
+            (emoji, i) => `
+          <div class="confetti-piece" style="--delay: ${i * 0.1}s; --x: ${
+              Math.random() * 100
+            }%; --rotation: ${Math.random() * 360}deg;">
+            ${emoji}
+          </div>
+        `
+          )
+          .join("")}
+      </div>
+    `;
+
+    document.body.appendChild(confettiContainer);
+
+    // Remover después de la animación
+    setTimeout(() => {
+      confettiContainer.remove();
+    }, 3000);
+  }
+
   async resetAllData() {
+    console.log("🔄 Iniciando restablecimiento completo de datos...");
+
     try {
-      console.log("Starting data reset...");
+      // Cerrar modal inmediatamente
+      const resetModal = document.getElementById("reset-modal");
+      if (resetModal) {
+        resetModal.classList.add("hidden");
+      }
 
-      // Clear all data from IndexedDB
-      await DatabaseManager.init();
-      const stores = [
-        "users",
-        "treatments",
-        "doses",
-        "user_stats",
-        "achievements",
-      ];
+      // Mostrar indicador de progreso
+      Utils.showToast("Eliminando todos los datos...", "warning", 2000);
 
-      // Delete all records from each store
-      for (const storeName of stores) {
+      // Limpiar timers de notificaciones
+      this.clearNotificationTimers();
+
+      // Cerrar la base de datos actual
+      if (window.db) {
         try {
-          const allRecords = await DatabaseManager.getAll(storeName);
-          console.log(
-            `Clearing ${allRecords.length} records from ${storeName}`
-          );
-          for (const record of allRecords) {
-            await DatabaseManager.delete(storeName, record.id);
-          }
-        } catch (storeError) {
-          console.warn(`Error clearing store ${storeName}:`, storeError);
+          window.db.close();
+          console.log("✅ Base de datos cerrada");
+        } catch (e) {
+          console.warn("⚠️ Error cerrando base de datos:", e);
         }
       }
 
-      // Close and delete the database
-      if (db) {
-        db.close();
-        console.log("Database closed");
-      }
+      // Eliminar completamente la base de datos
+      await new Promise((resolve) => {
+        const deleteRequest = indexedDB.deleteDatabase(
+          APP_CONFIG.DB_NAME || "PillQuestDB"
+        );
 
-      // Try to delete the entire database
-      try {
-        await new Promise((resolve, reject) => {
-          const deleteReq = indexedDB.deleteDatabase("PillQuestDB");
-          deleteReq.onsuccess = () => resolve();
-          deleteReq.onerror = () => reject(deleteReq.error);
-          deleteReq.onblocked = () => {
-            console.warn("Database deletion blocked");
-            resolve(); // Continue anyway
-          };
-        });
-        console.log("Database deleted");
-      } catch (dbError) {
-        console.warn("Could not delete database:", dbError);
-      }
+        deleteRequest.onsuccess = () => {
+          console.log("✅ Base de datos eliminada completamente");
+          resolve();
+        };
 
-      // Clear all storage
+        deleteRequest.onerror = (e) => {
+          console.warn("⚠️ Error eliminando base de datos:", e);
+          resolve(); // Continúa de todas formas
+        };
+
+        deleteRequest.onblocked = () => {
+          console.warn("⚠️ Eliminación de base de datos bloqueada");
+          resolve(); // Continúa de todas formas
+        };
+
+        // Timeout de seguridad
+        setTimeout(() => {
+          console.log("⏰ Timeout eliminando base de datos, continuando...");
+          resolve();
+        }, 2000);
+      });
+
+      // Limpiar todos los almacenamientos
       localStorage.clear();
       sessionStorage.clear();
-      console.log("Storage cleared");
 
-      // Reset global variables
-      currentUser = null;
-      db = null;
+      // Limpiar cookies si existen
+      document.cookie.split(";").forEach(function (c) {
+        document.cookie = c
+          .replace(/^ +/, "")
+          .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+      });
 
-      console.log("All data has been reset successfully. Reloading...");
+      // Resetear variables globales
+      window.currentUser = null;
+      window.db = null;
 
-      // Force complete page reload
+      console.log("✅ Todos los datos han sido eliminados");
+
+      // Mostrar confirmación final
+      Utils.showToast(
+        "Datos eliminados. Reiniciando aplicación...",
+        "success",
+        1000
+      );
+
+      // Forzar recarga completa después de un breve delay
       setTimeout(() => {
-        window.location.href =
-          window.location.origin + window.location.pathname;
-      }, 100);
+        window.location.replace(
+          window.location.origin + window.location.pathname
+        );
+      }, 1000);
     } catch (error) {
-      console.error("Error resetting data:", error);
-      throw error;
+      console.error("❌ Error durante el restablecimiento:", error);
+      Utils.showError("Error restableciendo datos. Recargando página...");
+
+      // Si todo falla, forzar recarga
+      setTimeout(() => {
+        window.location.replace(
+          window.location.origin + window.location.pathname
+        );
+      }, 2000);
     }
   }
 
@@ -2860,20 +2939,25 @@ class PillQuestApp {
     purchaseButtons.forEach((btn) => {
       btn.addEventListener("click", async () => {
         const itemId = btn.dataset.itemId;
-        const itemCost = parseInt(btn.dataset.cost);
+        const itemCost = parseInt(
+          btn.dataset.cost || btn.dataset.originalCost || 0
+        );
+        const isTestMode = this.isTestModeEnabled();
 
-        if (this.isTestModeEnabled() || stats.totalCoins >= itemCost) {
+        // En modo prueba, siempre permitir compra
+        if (isTestMode || stats.totalCoins >= itemCost) {
           try {
-            if (!this.isTestModeEnabled()) {
+            // Solo deducir monedas si NO está en modo prueba
+            if (!isTestMode) {
               await UserStatsRepository.update(currentUser.id, {
                 totalCoins: stats.totalCoins - itemCost,
               });
             }
 
-            const message = this.isTestModeEnabled()
+            const message = isTestMode
               ? `🧪 Has obtenido ${this.getItemName(
                   itemId
-                )} gratis (Modo Prueba)! 🎉`
+                )} GRATIS (Modo Prueba)! 🎉`
               : `¡Has comprado ${this.getItemName(itemId)}! 🎉`;
 
             Utils.showToast(message, "success");
