@@ -1071,12 +1071,36 @@ input:checked + .toggle-slider:before {
     background: linear-gradient(135deg, var(--primary-color), #66BB6A);
     border-radius: var(--border-radius-lg);
     color: white;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
 }
 
 .shop-title {
     font-size: var(--font-size-xxl);
     font-weight: 700;
     margin: 0;
+}
+
+.test-mode-indicator {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    background: rgba(255, 193, 7, 0.9);
+    color: #333;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    animation: pulse 2s infinite;
+}
+
+.test-icon {
+    font-size: var(--font-size-md);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
 }
 
 .coin-balance {

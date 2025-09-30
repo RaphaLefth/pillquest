@@ -1568,6 +1568,7 @@ class ScreenManager {
   }
 
   renderShopScreen(stats) {
+    const isTestMode = localStorage.getItem("testMode") === "true";
     const shopItems = [
       {
         id: "streak_freeze",
@@ -1621,6 +1622,11 @@ class ScreenManager {
       <div class="screen shop-screen">
         <div class="shop-header">
           <h1 class="shop-title">🛍️ Tienda de Recompensas</h1>
+          ${
+            isTestMode
+              ? '<div class="test-mode-indicator"><span class="test-icon">🧪</span> Modo Prueba Activo</div>'
+              : ""
+          }
           <div class="coin-balance">
             <span class="coin-icon">🪙</span>
             <span class="coin-amount">${stats.totalCoins}</span>
@@ -1637,41 +1643,50 @@ class ScreenManager {
               <h3 class="category-title">${categoryName}</h3>
               <div class="shop-items">
                 ${categoryItems
-                  .map(
-                    (item) => `
-                  <div class="shop-item ${
-                    stats.totalCoins < item.cost ? "disabled" : ""
-                  }">
+                  .map((item) => {
+                    const canAfford =
+                      isTestMode || stats.totalCoins >= item.cost;
+                    return `
+                  <div class="shop-item ${!canAfford ? "disabled" : ""}">
                     <div class="item-header">
                       <span class="item-icon">${item.icon}</span>
                       <div class="item-info">
                         <h4 class="item-name">${item.name}</h4>
                         <p class="item-description">${item.description}</p>
+                        ${
+                          isTestMode
+                            ? '<small style="color: var(--primary-color); font-weight: 600;">🧪 Modo Prueba - Gratis</small>'
+                            : ""
+                        }
                       </div>
                     </div>
                     <div class="item-footer">
                       <div class="item-cost">
                         <span class="cost-icon">🪙</span>
-                        <span class="cost-amount">${item.cost}</span>
+                        <span class="cost-amount">${
+                          isTestMode ? "0" : item.cost
+                        }</span>
                       </div>
                       <button 
                         class="btn btn-primary purchase-btn ${
-                          stats.totalCoins < item.cost ? "disabled" : ""
+                          !canAfford ? "disabled" : ""
                         }" 
                         data-item-id="${item.id}" 
                         data-cost="${item.cost}"
-                        ${stats.totalCoins < item.cost ? "disabled" : ""}
+                        ${!canAfford ? "disabled" : ""}
                       >
                         ${
-                          stats.totalCoins < item.cost
+                          isTestMode
+                            ? "Obtener Gratis"
+                            : !canAfford
                             ? "Sin fondos"
                             : "Comprar"
                         }
                       </button>
                     </div>
                   </div>
-                `
-                  )
+                `;
+                  })
                   .join("")}
               </div>
             </div>
@@ -2727,14 +2742,8 @@ class PillQuestApp {
     if (confirmResetBtn) {
       confirmResetBtn.addEventListener("click", async () => {
         try {
+          Utils.showToast("Restableciendo datos...", "info");
           await this.resetAllData();
-          Utils.showToast(
-            "Datos restablecidos correctamente. Recargando aplicación...",
-            "success"
-          );
-          setTimeout(() => {
-            window.location.reload();
-          }, 2000);
         } catch (error) {
           Utils.showError("Error restableciendo datos: " + error.message);
         }
@@ -2774,8 +2783,10 @@ class PillQuestApp {
 
   async resetAllData() {
     try {
+      console.log("Starting data reset...");
+
       // Clear all data from IndexedDB
-      const db = await DatabaseManager.init();
+      await DatabaseManager.init();
       const stores = [
         "users",
         "treatments",
@@ -2784,20 +2795,59 @@ class PillQuestApp {
         "achievements",
       ];
 
+      // Delete all records from each store
       for (const storeName of stores) {
-        const allRecords = await DatabaseManager.getAll(storeName);
-        for (const record of allRecords) {
-          await DatabaseManager.delete(storeName, record.id);
+        try {
+          const allRecords = await DatabaseManager.getAll(storeName);
+          console.log(
+            `Clearing ${allRecords.length} records from ${storeName}`
+          );
+          for (const record of allRecords) {
+            await DatabaseManager.delete(storeName, record.id);
+          }
+        } catch (storeError) {
+          console.warn(`Error clearing store ${storeName}:`, storeError);
         }
       }
 
-      // Clear localStorage
+      // Close and delete the database
+      if (db) {
+        db.close();
+        console.log("Database closed");
+      }
+
+      // Try to delete the entire database
+      try {
+        await new Promise((resolve, reject) => {
+          const deleteReq = indexedDB.deleteDatabase("PillQuestDB");
+          deleteReq.onsuccess = () => resolve();
+          deleteReq.onerror = () => reject(deleteReq.error);
+          deleteReq.onblocked = () => {
+            console.warn("Database deletion blocked");
+            resolve(); // Continue anyway
+          };
+        });
+        console.log("Database deleted");
+      } catch (dbError) {
+        console.warn("Could not delete database:", dbError);
+      }
+
+      // Clear all storage
       localStorage.clear();
+      sessionStorage.clear();
+      console.log("Storage cleared");
 
-      // Reset current user
+      // Reset global variables
       currentUser = null;
+      db = null;
 
-      console.log("All data has been reset");
+      console.log("All data has been reset successfully. Reloading...");
+
+      // Force complete page reload
+      setTimeout(() => {
+        window.location.href =
+          window.location.origin + window.location.pathname;
+      }, 100);
     } catch (error) {
       console.error("Error resetting data:", error);
       throw error;
@@ -2820,10 +2870,13 @@ class PillQuestApp {
               });
             }
 
-            Utils.showToast(
-              `¡Has comprado ${this.getItemName(itemId)}! 🎉`,
-              "success"
-            );
+            const message = this.isTestModeEnabled()
+              ? `🧪 Has obtenido ${this.getItemName(
+                  itemId
+                )} gratis (Modo Prueba)! 🎉`
+              : `¡Has comprado ${this.getItemName(itemId)}! 🎉`;
+
+            Utils.showToast(message, "success");
             this.showShopScreen(); // Refresh
           } catch (error) {
             Utils.showError("Error realizando la compra");
