@@ -708,15 +708,25 @@ class Utils {
     }
   }
 
-  static generateDosesForTreatment(treatment, startDate, days = 30) {
+  static generateDosesForTreatment(treatment, startDate, days = null) {
     const doses = [];
     const start = new Date(startDate);
+    const totalDoses =
+      treatment.totalDoses || days * treatment.schedule.length || 30;
+    const maxDays =
+      days ||
+      treatment.duration ||
+      Math.ceil(totalDoses / treatment.schedule.length);
 
-    for (let day = 0; day < days; day++) {
+    let dosesGenerated = 0;
+
+    for (let day = 0; day < maxDays && dosesGenerated < totalDoses; day++) {
       const currentDate = new Date(start);
       currentDate.setDate(start.getDate() + day);
 
-      treatment.schedule.forEach((time) => {
+      for (const time of treatment.schedule) {
+        if (dosesGenerated >= totalDoses) break;
+
         const [hours, minutes] = time.split(":").map(Number);
         const scheduledAt = new Date(currentDate);
         scheduledAt.setHours(hours, minutes, 0, 0);
@@ -727,7 +737,9 @@ class Utils {
           medicationName: treatment.medicationName,
           dosage: treatment.dosage,
         });
-      });
+
+        dosesGenerated++;
+      }
     }
 
     return doses;
@@ -897,9 +909,17 @@ class ScreenManager {
                     </div>
                     
                     <div class="form-group">
-                        <label class="form-label" for="first-dose">Primera dosis</label>
+                        <label class="form-label" for="total-doses">Total de tomas del tratamiento</label>
+                        <input type="number" id="total-doses" class="form-input" required min="1" max="1000" value="30" placeholder="Ej: 30">
+                        <small class="form-help">Número total de dosis a tomar durante todo el tratamiento</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label" for="first-dose">Primera toma</label>
                         <input type="time" id="first-dose" class="form-input" required value="08:00">
                     </div>
+                    
+                    <div id="register-schedule-container"></div>
                     
                     <button type="submit" class="btn btn-primary btn-large" style="width: 100%; margin-top: 16px;">
                         Comenzar mi aventura 🚀
@@ -963,8 +983,14 @@ class ScreenManager {
                         <h3 style="margin-bottom: 16px; text-align: center; color: var(--text-primary);">
                             ¡Genial! No hay dosis pendientes
                         </h3>
-                        <div class="take-now-btn" style="background: #ccc; cursor: default;">
-                            ✅<br>Al día
+                        <div class="all-up-to-date">
+                            <div class="success-badge">
+                                <span class="success-icon">✨</span>
+                                <div class="success-content">
+                                    <h4>¡Perfecto!</h4>
+                                    <p>Todas las dosis al día</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 `
@@ -1011,7 +1037,7 @@ class ScreenManager {
                 </div>
 
         <div id="add-treatment-modal" class="modal hidden">
-          <div class="modal-content">
+          <div class="modal-content modal-scrollable">
             <div class="modal-header">
               <h3 class="modal-title">Añadir tratamiento</h3>
               <button type="button" id="close-add-treatment" class="modal-close" aria-label="Cerrar">
@@ -1056,6 +1082,94 @@ class ScreenManager {
             </form>
           </div>
         </div>
+
+        <div id="edit-treatment-modal" class="modal hidden">
+          <div class="modal-content modal-scrollable">
+            <div class="modal-header">
+              <h3 class="modal-title">Editar tratamiento</h3>
+              <button type="button" id="close-edit-treatment" class="modal-close" aria-label="Cerrar">
+                &times;
+              </button>
+            </div>
+            <form id="edit-treatment-form" class="modal-body">
+              <div class="form-group">
+                <label class="form-label" for="edit-treatment-medication">Medicamento</label>
+                <input id="edit-treatment-medication" name="medication" type="text" class="form-input" placeholder="Nombre del medicamento" required autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="edit-treatment-dosage">Dosis</label>
+                <input id="edit-treatment-dosage" name="dosage" type="text" class="form-input" placeholder="Ej. 1 comprimido" required autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="edit-treatment-frequency">Veces al día</label>
+                <select id="edit-treatment-frequency" name="frequency" class="form-select" required>
+                  <option value="1">1 vez</option>
+                  <option value="2">2 veces</option>
+                  <option value="3">3 veces</option>
+                  <option value="4">4 veces</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="edit-treatment-first-dose">Primera toma</label>
+                <input id="edit-treatment-first-dose" name="firstDose" type="time" class="form-input" required>
+              </div>
+              <div id="edit-treatment-schedule-container"></div>
+              <div class="form-group">
+                <label class="form-label" for="edit-treatment-duration">Duración (días)</label>
+                <input id="edit-treatment-duration" name="duration" type="number" class="form-input" min="1" max="365" required>
+              </div>
+              <div class="modal-actions">
+                <button type="button" id="cancel-edit-treatment" class="btn btn-outline">Cancelar</button>
+                <button type="button" id="delete-treatment" class="btn btn-danger">Eliminar</button>
+                <button type="submit" class="btn btn-primary">Actualizar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div id="edit-treatment-modal" class="modal hidden">
+          <div class="modal-content modal-scrollable">
+            <div class="modal-header">
+              <h3 class="modal-title">Editar tratamiento</h3>
+              <button type="button" id="close-edit-treatment" class="modal-close" aria-label="Cerrar">
+                &times;
+              </button>
+            </div>
+            <form id="edit-treatment-form" class="modal-body">
+              <div class="form-group">
+                <label class="form-label" for="edit-treatment-medication">Medicamento</label>
+                <input id="edit-treatment-medication" name="medication" type="text" class="form-input" placeholder="Nombre del medicamento" required autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="edit-treatment-dosage">Dosis</label>
+                <input id="edit-treatment-dosage" name="dosage" type="text" class="form-input" placeholder="Ej. 1 comprimido" required autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="edit-treatment-frequency">Veces al día</label>
+                <select id="edit-treatment-frequency" name="frequency" class="form-select" required>
+                  <option value="1">1 vez</option>
+                  <option value="2">2 veces</option>
+                  <option value="3">3 veces</option>
+                  <option value="4">4 veces</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="edit-treatment-first-dose">Primera toma</label>
+                <input id="edit-treatment-first-dose" name="firstDose" type="time" class="form-input" required>
+              </div>
+              <div id="edit-treatment-schedule-container"></div>
+              <div class="form-group">
+                <label class="form-label" for="edit-treatment-duration">Duración (días)</label>
+                <input id="edit-treatment-duration" name="duration" type="number" class="form-input" min="1" max="365" required>
+              </div>
+              <div class="modal-actions">
+                <button type="button" id="cancel-edit-treatment" class="btn btn-outline">Cancelar</button>
+                <button type="button" id="delete-treatment" class="btn btn-danger">Eliminar</button>
+                <button type="submit" class="btn btn-primary">Actualizar</button>
+              </div>
+            </form>
+          </div>
+        </div>
             </div>
         `;
   }
@@ -1078,6 +1192,454 @@ class ScreenManager {
     if (hour < 12) return "Buenos días";
     if (hour < 18) return "Buenas tardes";
     return "Buenas noches";
+  }
+
+  renderSettingsScreen(user) {
+    const avatars = [
+      "🐶",
+      "🐱",
+      "🐭",
+      "🐹",
+      "🐰",
+      "🦊",
+      "🐼",
+      "🐨",
+      "🦁",
+      "🐯",
+      "🦄",
+      "🐵",
+    ];
+
+    return `
+      <div class="screen settings-screen">
+        <div class="settings-header">
+          <h1 class="settings-title">⚙️ Configuración</h1>
+        </div>
+
+        <!-- Profile Section -->
+        <div class="settings-section">
+          <div class="profile-card">
+            <div class="profile-avatar">
+              <span class="avatar-display">${user.avatar || "📊"}</span>
+              <button id="change-avatar-btn" class="avatar-edit-btn">📝</button>
+            </div>
+            <div class="profile-info">
+              <h3 class="profile-name">${user.name}</h3>
+              <p class="profile-username">@${user.username}</p>
+              ${user.email ? `<p class="profile-email">${user.email}</p>` : ""}
+            </div>
+            <button id="edit-profile-btn" class="btn btn-outline">✏️ Editar</button>
+          </div>
+        </div>
+
+        <!-- Settings Options -->
+        <div class="settings-section">
+          <h3 class="section-title">Preferencias</h3>
+          <div class="settings-list">
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-icon">🔔</span>
+                <div>
+                  <h4>Notificaciones</h4>
+                  <p>Recordatorios de medicación</p>
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-icon">🌙</span>
+                <div>
+                  <h4>Modo Oscuro</h4>
+                  <p>Tema visual de la aplicación</p>
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-info">
+                <span class="setting-icon">📅</span>
+                <div>
+                  <h4>Recordatorio Diario</h4>
+                  <p>Resumen diario a las 20:00</p>
+                </div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data Section -->
+        <div class="settings-section">
+          <h3 class="section-title">Datos</h3>
+          <div class="settings-list">
+            <button class="setting-item-btn">
+              <span class="setting-icon">📋</span>
+              <div>
+                <h4>Exportar Datos</h4>
+                <p>Descargar historial en CSV</p>
+              </div>
+            </button>
+            
+            <button class="setting-item-btn danger">
+              <span class="setting-icon">🗑️</span>
+              <div>
+                <h4>Limpiar Datos</h4>
+                <p>Eliminar todo el historial</p>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Profile Modal -->
+        <div id="profile-modal" class="modal hidden">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3 class="modal-title">Editar Perfil</h3>
+              <button type="button" class="modal-close" onclick="document.getElementById('profile-modal').classList.add('hidden')">&times;</button>
+            </div>
+            <form id="profile-form" class="modal-body">
+              <div class="form-group">
+                <label class="form-label" for="profile-name">Nombre completo</label>
+                <input id="profile-name" type="text" class="form-input" value="${
+                  user.name
+                }" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="profile-email">Email (opcional)</label>
+                <input id="profile-email" type="email" class="form-input" value="${
+                  user.email || ""
+                }" placeholder="tu@email.com">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="profile-timezone">Zona horaria</label>
+                <select id="profile-timezone" class="form-select">
+                  <option value="America/Mexico_City" ${
+                    user.timezone === "America/Mexico_City" ? "selected" : ""
+                  }>Ciudad de México (UTC-6)</option>
+                  <option value="America/Bogota" ${
+                    user.timezone === "America/Bogota" ? "selected" : ""
+                  }>Bogotá (UTC-5)</option>
+                  <option value="America/Lima" ${
+                    user.timezone === "America/Lima" ? "selected" : ""
+                  }>Lima (UTC-5)</option>
+                  <option value="America/Argentina/Buenos_Aires" ${
+                    user.timezone === "America/Argentina/Buenos_Aires"
+                      ? "selected"
+                      : ""
+                  }>Buenos Aires (UTC-3)</option>
+                  <option value="Europe/Madrid" ${
+                    user.timezone === "Europe/Madrid" ? "selected" : ""
+                  }>Madrid (UTC+1)</option>
+                </select>
+              </div>
+              <div class="modal-actions">
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('profile-modal').classList.add('hidden')">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Guardar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Avatar Modal -->
+        <div id="avatar-modal" class="modal hidden">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3 class="modal-title">Seleccionar Avatar</h3>
+              <button type="button" id="close-avatar-modal" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="avatar-grid">
+                ${avatars
+                  .map(
+                    (avatar) => `
+                  <button class="avatar-option ${
+                    user.avatar === avatar ? "selected" : ""
+                  }" data-avatar="${avatar}">
+                    <span class="avatar-emoji">${avatar}</span>
+                  </button>
+                `
+                  )
+                  .join("")}
+              </div>
+              <div class="modal-actions">
+                <button type="button" id="cancel-avatar" class="btn btn-outline">Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  renderHistoryScreen(doses) {
+    if (doses.length === 0) {
+      return `
+        <div class="screen history-screen">
+          <div class="history-header">
+            <h1 class="history-title">📈 Historial de Dosis</h1>
+          </div>
+          <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <h3>No hay historial aún</h3>
+            <p>Las dosis tomadas aparecerán aquí</p>
+          </div>
+        </div>
+      `;
+    }
+
+    // Calculate progress statistics
+    const totalDoses = doses.length;
+    const takenDoses = doses.filter((dose) => dose.status === "taken").length;
+    const missedDoses = doses.filter((dose) => dose.status === "missed").length;
+    const scheduledDoses = doses.filter(
+      (dose) => dose.status === "scheduled"
+    ).length;
+    const progressPercentage =
+      totalDoses > 0 ? Math.round((takenDoses / totalDoses) * 100) : 0;
+
+    const groupedByDate = doses.reduce((groups, dose) => {
+      const date = new Date(dose.scheduledAt).toDateString();
+      if (!groups[date]) groups[date] = [];
+      groups[date].push(dose);
+      return groups;
+    }, {});
+
+    return `
+      <div class="screen history-screen">
+        <div class="history-header">
+          <h1 class="history-title">📈 Historial de Dosis</h1>
+          <p class="history-subtitle">Registro completo del tratamiento</p>
+          
+          <!-- Progress Statistics -->
+          <div class="progress-stats">
+            <div class="progress-bar-container">
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: ${progressPercentage}%"></div>
+              </div>
+              <span class="progress-text">${takenDoses}/${totalDoses} dosis completadas (${progressPercentage}%)</span>
+            </div>
+            
+            <div class="stats-summary">
+              <div class="stat-item taken">
+                <span class="stat-icon">✓</span>
+                <span class="stat-count">${takenDoses}</span>
+                <span class="stat-label">Tomadas</span>
+              </div>
+              <div class="stat-item missed">
+                <span class="stat-icon">✗</span>
+                <span class="stat-count">${missedDoses}</span>
+                <span class="stat-label">Perdidas</span>
+              </div>
+              <div class="stat-item scheduled">
+                <span class="stat-icon">⏰</span>
+                <span class="stat-count">${scheduledDoses}</span>
+                <span class="stat-label">Pendientes</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="history-content">
+          ${Object.entries(groupedByDate)
+            .map(([date, dayDoses]) => {
+              const dateObj = new Date(date);
+              const isToday =
+                dateObj.toDateString() === new Date().toDateString();
+              const isYesterday =
+                dateObj.toDateString() ===
+                new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
+
+              let dateLabel;
+              if (isToday) dateLabel = "Hoy";
+              else if (isYesterday) dateLabel = "Ayer";
+              else
+                dateLabel = new Intl.DateTimeFormat("es", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                }).format(dateObj);
+
+              return `
+              <div class="history-day">
+                <h3 class="day-header">${dateLabel}</h3>
+                <div class="dose-list">
+                  ${dayDoses
+                    .map(
+                      (dose) => `
+                    <div class="dose-item ${dose.status}">
+                      <div class="dose-time">
+                        ${Utils.formatTime(dose.scheduledAt)}
+                      </div>
+                      <div class="dose-info">
+                        <h4 class="dose-medication">${
+                          dose.treatment?.medicationName || dose.medicationName
+                        }</h4>
+                        <p class="dose-amount">${dose.dosage}</p>
+                      </div>
+                      <div class="dose-status">
+                        ${
+                          dose.status === "taken"
+                            ? `<span class="status-badge taken">✓ Tomada</span>`
+                            : dose.status === "missed"
+                            ? `<span class="status-badge missed">✗ Perdida</span>`
+                            : `<span class="status-badge scheduled">⏰ Programada</span>`
+                        }
+                        ${
+                          dose.takenAt
+                            ? `<small class="taken-time">Tomada: ${Utils.formatTime(
+                                dose.takenAt
+                              )}</small>`
+                            : ""
+                        }
+                      </div>
+                    </div>
+                  `
+                    )
+                    .join("")}
+                </div>
+              </div>
+            `;
+            })
+            .join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  renderShopScreen(stats) {
+    const shopItems = [
+      {
+        id: "streak_freeze",
+        name: "Congelación de Racha",
+        description: "Protege tu racha por 1 día si olvidas una dosis",
+        icon: "❄️",
+        cost: 50,
+        category: "power-ups",
+      },
+      {
+        id: "double_coins",
+        name: "Monedas Dobles",
+        description: "Duplica las monedas ganadas por 24 horas",
+        icon: "💰",
+        cost: 75,
+        category: "power-ups",
+      },
+      {
+        id: "custom_avatar",
+        name: "Avatar Personalizado",
+        description: "Desbloquea avatares exclusivos y personalizaciones",
+        icon: "🎨",
+        cost: 100,
+        category: "cosmetic",
+      },
+      {
+        id: "premium_stats",
+        name: "Estadísticas Premium",
+        description: "Análisis detallado y gráficas avanzadas",
+        icon: "📉",
+        cost: 150,
+        category: "features",
+      },
+      {
+        id: "notification_pack",
+        name: "Pack de Notificaciones",
+        description: "Sonidos y estilos de notificación personalizados",
+        icon: "🔔",
+        cost: 80,
+        category: "cosmetic",
+      },
+    ];
+
+    const categories = {
+      "power-ups": "Power-ups",
+      cosmetic: "Cosméticos",
+      features: "Funciones",
+    };
+
+    return `
+      <div class="screen shop-screen">
+        <div class="shop-header">
+          <h1 class="shop-title">🛍️ Tienda de Recompensas</h1>
+          <div class="coin-balance">
+            <span class="coin-icon">🪙</span>
+            <span class="coin-amount">${stats.totalCoins}</span>
+          </div>
+        </div>
+
+        ${Object.entries(categories)
+          .map(([categoryId, categoryName]) => {
+            const categoryItems = shopItems.filter(
+              (item) => item.category === categoryId
+            );
+            return `
+            <div class="shop-category">
+              <h3 class="category-title">${categoryName}</h3>
+              <div class="shop-items">
+                ${categoryItems
+                  .map(
+                    (item) => `
+                  <div class="shop-item ${
+                    stats.totalCoins < item.cost ? "disabled" : ""
+                  }">
+                    <div class="item-header">
+                      <span class="item-icon">${item.icon}</span>
+                      <div class="item-info">
+                        <h4 class="item-name">${item.name}</h4>
+                        <p class="item-description">${item.description}</p>
+                      </div>
+                    </div>
+                    <div class="item-footer">
+                      <div class="item-cost">
+                        <span class="cost-icon">🪙</span>
+                        <span class="cost-amount">${item.cost}</span>
+                      </div>
+                      <button 
+                        class="btn btn-primary purchase-btn ${
+                          stats.totalCoins < item.cost ? "disabled" : ""
+                        }" 
+                        data-item-id="${item.id}" 
+                        data-cost="${item.cost}"
+                        ${stats.totalCoins < item.cost ? "disabled" : ""}
+                      >
+                        ${
+                          stats.totalCoins < item.cost
+                            ? "Sin fondos"
+                            : "Comprar"
+                        }
+                      </button>
+                    </div>
+                  </div>
+                `
+                  )
+                  .join("")}
+              </div>
+            </div>
+          `;
+          })
+          .join("")}
+
+        <div class="shop-footer">
+          <div class="earn-more-card">
+            <h3>💪 ¿Necesitas más monedas?</h3>
+            <p>Toma tus dosis puntualmente para ganar +${
+              APP_CONFIG.COINS_PER_DOSE
+            } monedas por dosis</p>
+          </div>
+        </div>
+      </div>
+    `;
   }
 }
 
@@ -1270,11 +1832,59 @@ class PillQuestApp {
 
   setupRegisterForm() {
     const form = document.getElementById("register-form");
+    const frequencySelect = document.getElementById("frequency");
+    const firstDoseInput = document.getElementById("first-dose");
+    const scheduleContainer = document.getElementById(
+      "register-schedule-container"
+    );
+
+    const renderScheduleInputs = () => {
+      const frequency = parseInt(frequencySelect.value, 10) || 1;
+      const firstDoseValue = firstDoseInput.value || "08:00";
+      const autoSchedule = this.generateSchedule(firstDoseValue, frequency);
+
+      scheduleContainer.innerHTML = "";
+
+      if (frequency > 1) {
+        scheduleContainer.innerHTML = `
+          <div class="form-group">
+            <label class="form-label">Horarios de tomas</label>
+            <div class="schedule-inputs">
+              ${autoSchedule
+                .map(
+                  (time, index) => `
+                <div class="schedule-time-group">
+                  <label class="form-label" for="register-schedule-time-${index}">Toma ${
+                    index + 1
+                  }</label>
+                  <input 
+                    id="register-schedule-time-${index}" 
+                    type="time" 
+                    class="form-input" 
+                    value="${time}" 
+                    required
+                  >
+                </div>
+              `
+                )
+                .join("")}
+            </div>
+          </div>
+        `;
+      }
+    };
+
+    // Initial render
+    renderScheduleInputs();
+
+    // Update schedule when frequency or first dose changes
+    frequencySelect.addEventListener("change", renderScheduleInputs);
+    firstDoseInput.addEventListener("change", renderScheduleInputs);
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
 
       try {
-        const formData = new FormData(form);
         const userData = {
           name: document.getElementById("name").value,
           username: document.getElementById("username").value,
@@ -1293,17 +1903,35 @@ class PillQuestApp {
         // Create user
         currentUser = await UserRepository.create(userData);
 
+        // Get schedule from inputs
+        const frequency = parseInt(frequencySelect.value, 10) || 1;
+        let schedule = [firstDoseInput.value];
+
+        if (frequency > 1) {
+          const scheduleInputs = Array.from(
+            scheduleContainer.querySelectorAll('input[type="time"]')
+          );
+          schedule = scheduleInputs.map((input) => input.value).filter(Boolean);
+
+          if (schedule.length !== frequency) {
+            Utils.showError("Completa todos los horarios de las tomas");
+            return;
+          }
+        }
+
+        const totalDoses =
+          parseInt(document.getElementById("total-doses").value) || 30;
+        const daysOfTreatment = Math.ceil(totalDoses / frequency);
+
         // Create initial treatment
         const treatmentData = {
           userId: currentUser.id,
           medicationName: document.getElementById("medication").value,
           dosage: document.getElementById("dosage").value,
-          frequency: parseInt(document.getElementById("frequency").value),
-          schedule: this.generateSchedule(
-            document.getElementById("first-dose").value,
-            parseInt(document.getElementById("frequency").value)
-          ),
-          duration: 30, // Default 30 days
+          frequency: frequency,
+          schedule: schedule.sort(),
+          duration: daysOfTreatment,
+          totalDoses: totalDoses,
           startDate: new Date().toISOString(),
         };
 
@@ -1340,14 +1968,51 @@ class PillQuestApp {
     if (frequency === 1) return schedule;
 
     const [hours, minutes] = firstDose.split(":").map(Number);
-    const intervalHours = Math.floor(24 / frequency);
 
-    for (let i = 1; i < frequency; i++) {
-      const newHour = (hours + intervalHours * i) % 24;
-      const timeStr = `${String(newHour).padStart(2, "0")}:${String(
-        minutes
-      ).padStart(2, "0")}`;
-      schedule.push(timeStr);
+    // Better time distribution based on common medical schedules
+    if (frequency === 2) {
+      // Every 12 hours: morning and evening
+      const secondHour = (hours + 12) % 24;
+      schedule.push(
+        `${String(secondHour).padStart(2, "0")}:${String(minutes).padStart(
+          2,
+          "0"
+        )}`
+      );
+    } else if (frequency === 3) {
+      // Every 8 hours: morning, afternoon, evening
+      for (let i = 1; i < frequency; i++) {
+        const newHour = (hours + 8 * i) % 24;
+        schedule.push(
+          `${String(newHour).padStart(2, "0")}:${String(minutes).padStart(
+            2,
+            "0"
+          )}`
+        );
+      }
+    } else if (frequency === 4) {
+      // Every 6 hours: morning, noon, afternoon, evening
+      for (let i = 1; i < frequency; i++) {
+        const newHour = (hours + 6 * i) % 24;
+        schedule.push(
+          `${String(newHour).padStart(2, "0")}:${String(minutes).padStart(
+            2,
+            "0"
+          )}`
+        );
+      }
+    } else {
+      // Generic distribution
+      const intervalHours = Math.floor(24 / frequency);
+      for (let i = 1; i < frequency; i++) {
+        const newHour = (hours + intervalHours * i) % 24;
+        schedule.push(
+          `${String(newHour).padStart(2, "0")}:${String(minutes).padStart(
+            2,
+            "0"
+          )}`
+        );
+      }
     }
 
     return schedule;
@@ -1808,31 +2473,562 @@ class PillQuestApp {
     }
   }
 
-  showShopScreen() {
-    const content = this.screenManager.renderPlaceholderScreen(
-      "Tienda de Recompensas",
-      "🛍️",
-      "Próximamente podrás canjear tus monedas por increíbles recompensas"
-    );
-    this.screenManager.render(content);
+  async showShopScreen() {
+    if (!currentUser) {
+      this.router.navigate("register");
+      return;
+    }
+
+    try {
+      const stats = await UserStatsRepository.getOrCreate(currentUser.id);
+      const content = this.screenManager.renderShopScreen(stats);
+      this.screenManager.render(content);
+      this.setupShopHandlers(stats);
+    } catch (error) {
+      Utils.showError("Error cargando tienda");
+      console.error("Shop screen error:", error);
+    }
   }
 
-  showTableScreen() {
-    const content = this.screenManager.renderPlaceholderScreen(
-      "Historial de Dosis",
-      "📊",
-      "Aquí podrás ver el historial completo de todas tus dosis"
-    );
-    this.screenManager.render(content);
+  setupShopHandlers(stats) {
+    const purchaseButtons = document.querySelectorAll(".purchase-btn");
+
+    purchaseButtons.forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const itemId = btn.dataset.itemId;
+        const itemCost = parseInt(btn.dataset.cost);
+
+        if (stats.totalCoins < itemCost) {
+          Utils.showToast("No tienes suficientes monedas", "warning");
+          return;
+        }
+
+        try {
+          await UserStatsRepository.update(currentUser.id, {
+            totalCoins: stats.totalCoins - itemCost,
+          });
+
+          Utils.showToast(
+            `¡Has comprado ${this.getItemName(itemId)}! 🎉`,
+            "success"
+          );
+          this.showShopScreen(); // Refresh
+        } catch (error) {
+          Utils.showError("Error realizando la compra");
+        }
+      });
+    });
   }
 
-  showSettingsScreen() {
-    const content = this.screenManager.renderPlaceholderScreen(
-      "Configuración",
-      "⚙️",
-      "Personaliza tu experiencia en PillQuest"
+  getItemName(itemId) {
+    const items = {
+      streak_freeze: "Congelación de Racha",
+      double_coins: "Monedas Dobles",
+      custom_avatar: "Avatar Personalizado",
+      premium_stats: "Estadísticas Premium",
+      notification_pack: "Pack de Notificaciones",
+    };
+    return items[itemId] || "Artículo";
+  }
+
+  async showTableScreen() {
+    if (!currentUser) {
+      this.router.navigate("register");
+      return;
+    }
+
+    try {
+      const treatments = await TreatmentRepository.getByUserId(currentUser.id);
+      const allDoses = [];
+
+      for (const treatment of treatments) {
+        const doses = await DoseRepository.getByTreatmentId(treatment.id);
+        allDoses.push(...doses.map((dose) => ({ ...dose, treatment })));
+      }
+
+      allDoses.sort(
+        (a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt)
+      );
+
+      const content = this.screenManager.renderHistoryScreen(
+        allDoses.slice(0, 50)
+      );
+      this.screenManager.render(content);
+    } catch (error) {
+      Utils.showError("Error cargando historial");
+      console.error("History screen error:", error);
+    }
+  }
+
+  async showSettingsScreen() {
+    if (!currentUser) {
+      this.router.navigate("register");
+      return;
+    }
+
+    try {
+      const content = this.screenManager.renderSettingsScreen(currentUser);
+      this.screenManager.render(content);
+      this.setupSettingsHandlers();
+    } catch (error) {
+      Utils.showError("Error cargando configuración");
+      console.error("Settings screen error:", error);
+    }
+  }
+
+  setupSettingsHandlers() {
+    const editProfileBtn = document.getElementById("edit-profile-btn");
+    const avatarModal = document.getElementById("avatar-modal");
+    const changeAvatarBtn = document.getElementById("change-avatar-btn");
+    const profileForm = document.getElementById("profile-form");
+    const avatarOptions = document.querySelectorAll(".avatar-option");
+    const closeAvatarModal = document.getElementById("close-avatar-modal");
+    const cancelAvatarBtn = document.getElementById("cancel-avatar");
+
+    if (editProfileBtn) {
+      editProfileBtn.addEventListener("click", () => {
+        const modal = document.getElementById("profile-modal");
+        if (modal) {
+          modal.classList.remove("hidden");
+          document.getElementById("profile-name").focus();
+        }
+      });
+    }
+
+    if (changeAvatarBtn) {
+      changeAvatarBtn.addEventListener("click", () => {
+        avatarModal.classList.remove("hidden");
+      });
+    }
+
+    if (closeAvatarModal) {
+      closeAvatarModal.addEventListener("click", () => {
+        avatarModal.classList.add("hidden");
+      });
+    }
+
+    if (cancelAvatarBtn) {
+      cancelAvatarBtn.addEventListener("click", () => {
+        avatarModal.classList.add("hidden");
+      });
+    }
+
+    avatarOptions.forEach((option) => {
+      option.addEventListener("click", async () => {
+        const newAvatar = option.dataset.avatar;
+        try {
+          await UserRepository.update(currentUser.id, { avatar: newAvatar });
+          currentUser.avatar = newAvatar;
+          Utils.showToast("Avatar actualizado correctamente", "success");
+          avatarModal.classList.add("hidden");
+          this.showSettingsScreen(); // Refresh
+        } catch (error) {
+          Utils.showError("Error actualizando avatar");
+        }
+      });
+    });
+
+    if (profileForm) {
+      profileForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+          const name = document.getElementById("profile-name").value.trim();
+          const email = document.getElementById("profile-email").value.trim();
+          const timezone = document.getElementById("profile-timezone").value;
+
+          if (!name) {
+            Utils.showError("El nombre es obligatorio");
+            return;
+          }
+
+          await UserRepository.update(currentUser.id, {
+            name,
+            email,
+            timezone,
+          });
+          Object.assign(currentUser, { name, email, timezone });
+
+          Utils.showToast("Perfil actualizado correctamente", "success");
+          document.getElementById("profile-modal").classList.add("hidden");
+          this.showSettingsScreen(); // Refresh
+        } catch (error) {
+          Utils.showError("Error actualizando perfil");
+        }
+      });
+    }
+
+    // Close modals on outside click
+    document.addEventListener("click", (e) => {
+      const profileModal = document.getElementById("profile-modal");
+      const avatarModalEl = document.getElementById("avatar-modal");
+
+      if (e.target === profileModal) {
+        profileModal.classList.add("hidden");
+      }
+      if (e.target === avatarModalEl) {
+        avatarModalEl.classList.add("hidden");
+      }
+    });
+  }
+
+  setupSettingsHandlers() {
+    const editProfileBtn = document.getElementById("edit-profile-btn");
+    const avatarModal = document.getElementById("avatar-modal");
+    const changeAvatarBtn = document.getElementById("change-avatar-btn");
+    const profileForm = document.getElementById("profile-form");
+    const avatarOptions = document.querySelectorAll(".avatar-option");
+    const closeAvatarModal = document.getElementById("close-avatar-modal");
+    const cancelAvatarBtn = document.getElementById("cancel-avatar");
+
+    if (editProfileBtn) {
+      editProfileBtn.addEventListener("click", () => {
+        const modal = document.getElementById("profile-modal");
+        if (modal) {
+          modal.classList.remove("hidden");
+          document.getElementById("profile-name").focus();
+        }
+      });
+    }
+
+    if (changeAvatarBtn) {
+      changeAvatarBtn.addEventListener("click", () => {
+        avatarModal.classList.remove("hidden");
+      });
+    }
+
+    if (closeAvatarModal) {
+      closeAvatarModal.addEventListener("click", () => {
+        avatarModal.classList.add("hidden");
+      });
+    }
+
+    if (cancelAvatarBtn) {
+      cancelAvatarBtn.addEventListener("click", () => {
+        avatarModal.classList.add("hidden");
+      });
+    }
+
+    avatarOptions.forEach((option) => {
+      option.addEventListener("click", async () => {
+        const newAvatar = option.dataset.avatar;
+        try {
+          await UserRepository.update(currentUser.id, { avatar: newAvatar });
+          currentUser.avatar = newAvatar;
+          Utils.showToast("Avatar actualizado correctamente", "success");
+          avatarModal.classList.add("hidden");
+          this.showSettingsScreen(); // Refresh
+        } catch (error) {
+          Utils.showError("Error actualizando avatar");
+        }
+      });
+    });
+
+    if (profileForm) {
+      profileForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        try {
+          const name = document.getElementById("profile-name").value.trim();
+          const email = document.getElementById("profile-email").value.trim();
+          const timezone = document.getElementById("profile-timezone").value;
+
+          if (!name) {
+            Utils.showError("El nombre es obligatorio");
+            return;
+          }
+
+          await UserRepository.update(currentUser.id, {
+            name,
+            email,
+            timezone,
+          });
+          Object.assign(currentUser, { name, email, timezone });
+
+          Utils.showToast("Perfil actualizado correctamente", "success");
+          document.getElementById("profile-modal").classList.add("hidden");
+          this.showSettingsScreen(); // Refresh
+        } catch (error) {
+          Utils.showError("Error actualizando perfil");
+        }
+      });
+    }
+
+    // Close modals on outside click
+    document.addEventListener("click", (e) => {
+      const profileModal = document.getElementById("profile-modal");
+      const avatarModalEl = document.getElementById("avatar-modal");
+
+      if (e.target === profileModal) {
+        profileModal.classList.add("hidden");
+      }
+      if (e.target === avatarModalEl) {
+        avatarModalEl.classList.add("hidden");
+      }
+    });
+  }
+
+  setupShopHandlers(stats) {
+    const purchaseButtons = document.querySelectorAll(".purchase-btn");
+
+    purchaseButtons.forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const itemId = btn.dataset.itemId;
+        const itemCost = parseInt(btn.dataset.cost);
+
+        if (stats.totalCoins < itemCost) {
+          Utils.showToast("No tienes suficientes monedas", "warning");
+          return;
+        }
+
+        try {
+          await UserStatsRepository.update(currentUser.id, {
+            totalCoins: stats.totalCoins - itemCost,
+          });
+
+          Utils.showToast(
+            `¡Has comprado ${this.getItemName(itemId)}! 🎉`,
+            "success"
+          );
+          this.showShopScreen(); // Refresh
+        } catch (error) {
+          Utils.showError("Error realizando la compra");
+        }
+      });
+    });
+  }
+
+  getItemName(itemId) {
+    const items = {
+      streak_freeze: "Congelación de Racha",
+      double_coins: "Monedas Dobles",
+      custom_avatar: "Avatar Personalizado",
+      premium_stats: "Estadísticas Premium",
+      notification_pack: "Pack de Notificaciones",
+    };
+    return items[itemId] || "Artículo";
+  }
+
+  async editTreatment(treatmentId) {
+    try {
+      const treatment = await TreatmentRepository.getById(treatmentId);
+      if (!treatment) {
+        Utils.showError("Tratamiento no encontrado");
+        return;
+      }
+
+      const modal = document.getElementById("edit-treatment-modal");
+      if (!modal) {
+        Utils.showError("Modal de edición no disponible");
+        return;
+      }
+
+      // Populate form with current treatment data
+      document.getElementById("edit-treatment-medication").value =
+        treatment.medicationName || "";
+      document.getElementById("edit-treatment-dosage").value =
+        treatment.dosage || "";
+      document.getElementById("edit-treatment-frequency").value =
+        treatment.frequency || 1;
+      document.getElementById("edit-treatment-duration").value =
+        treatment.duration || 30;
+
+      if (treatment.schedule && treatment.schedule.length > 0) {
+        document.getElementById("edit-treatment-first-dose").value =
+          treatment.schedule[0] || "08:00";
+      }
+
+      // Show modal
+      modal.classList.remove("hidden");
+      document.getElementById("edit-treatment-medication").focus();
+
+      // Setup handlers for this specific treatment
+      this.setupEditTreatmentHandlers(treatmentId, treatment);
+    } catch (error) {
+      Utils.showError("Error cargando tratamiento: " + error.message);
+      console.error("Edit treatment error:", error);
+    }
+  }
+
+  setupEditTreatmentHandlers(treatmentId, treatment) {
+    const modal = document.getElementById("edit-treatment-modal");
+    const form = document.getElementById("edit-treatment-form");
+    const closeBtn = document.getElementById("close-edit-treatment");
+    const cancelBtn = document.getElementById("cancel-edit-treatment");
+    const deleteBtn = document.getElementById("delete-treatment");
+    const frequencySelect = document.getElementById("edit-treatment-frequency");
+    const firstDoseInput = document.getElementById("edit-treatment-first-dose");
+    const scheduleContainer = document.getElementById(
+      "edit-treatment-schedule-container"
     );
-    this.screenManager.render(content);
+
+    const renderScheduleInputs = () => {
+      const frequency = parseInt(frequencySelect.value, 10) || 1;
+      const firstDoseValue = firstDoseInput.value || "08:00";
+      const autoSchedule = this.generateSchedule(firstDoseValue, frequency);
+      const currentSchedule = treatment.schedule || [];
+
+      scheduleContainer.innerHTML = "";
+
+      for (let i = 0; i < frequency; i++) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "form-group";
+
+        const label = document.createElement("label");
+        label.className = "form-label";
+        label.setAttribute("for", `edit-schedule-time-${i}`);
+        label.textContent = `Hora ${i + 1}`;
+
+        const input = document.createElement("input");
+        input.type = "time";
+        input.id = `edit-schedule-time-${i}`;
+        input.className = "form-input";
+        input.required = true;
+        input.value = currentSchedule[i] || autoSchedule[i] || "08:00";
+
+        wrapper.appendChild(label);
+        wrapper.appendChild(input);
+        scheduleContainer.appendChild(wrapper);
+      }
+    };
+
+    const closeModal = () => {
+      modal.classList.add("hidden");
+      // Clean up event listeners
+      const newForm = form.cloneNode(true);
+      form.parentNode.replaceChild(newForm, form);
+    };
+
+    // Initial render
+    renderScheduleInputs();
+
+    // Event listeners
+    closeBtn.addEventListener("click", closeModal);
+    cancelBtn.addEventListener("click", closeModal);
+
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    frequencySelect.addEventListener("change", renderScheduleInputs);
+    firstDoseInput.addEventListener("change", renderScheduleInputs);
+
+    // Delete treatment
+    deleteBtn.addEventListener("click", async () => {
+      if (
+        confirm(
+          "¿Estás seguro de que quieres eliminar este tratamiento? Esta acción no se puede deshacer."
+        )
+      ) {
+        try {
+          await TreatmentRepository.update(treatmentId, { active: false });
+          Utils.showToast("Tratamiento eliminado correctamente", "success");
+          closeModal();
+          this.showHomeScreen();
+        } catch (error) {
+          Utils.showError("Error eliminando tratamiento");
+        }
+      }
+    });
+
+    // Update treatment
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const submitButton = form.querySelector('button[type="submit"]');
+      if (submitButton) {
+        submitButton.disabled = true;
+      }
+
+      try {
+        const medicationName = document
+          .getElementById("edit-treatment-medication")
+          .value.trim();
+        const dosage = document
+          .getElementById("edit-treatment-dosage")
+          .value.trim();
+        const frequency = parseInt(frequencySelect.value, 10) || 1;
+        const duration =
+          parseInt(
+            document.getElementById("edit-treatment-duration").value,
+            10
+          ) || 30;
+
+        const scheduleInputs = Array.from(
+          scheduleContainer.querySelectorAll('input[type="time"]')
+        );
+        const scheduleTimes = scheduleInputs
+          .map((input) => input.value)
+          .filter(Boolean);
+
+        if (scheduleTimes.length !== frequency) {
+          throw new Error("Completa todos los horarios de las tomas");
+        }
+
+        const uniqueTimes = Array.from(new Set(scheduleTimes));
+        if (uniqueTimes.length !== scheduleTimes.length) {
+          throw new Error("No se permiten horarios duplicados");
+        }
+
+        uniqueTimes.sort();
+
+        // Update treatment
+        await TreatmentRepository.update(treatmentId, {
+          medicationName,
+          dosage,
+          frequency,
+          schedule: uniqueTimes,
+          duration,
+        });
+
+        // Delete old future doses and create new ones
+        const existingDoses = await DoseRepository.getByTreatmentId(
+          treatmentId
+        );
+        const now = new Date();
+
+        for (const dose of existingDoses) {
+          const scheduledTime = new Date(dose.scheduledAt);
+          if (scheduledTime > now && dose.status === "scheduled") {
+            // Delete future scheduled doses
+            await DatabaseManager.delete("doses", dose.id);
+          }
+        }
+
+        // Generate new doses from today forward
+        const updatedTreatment = await TreatmentRepository.getById(treatmentId);
+        const startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+
+        const newDoses = Utils.generateDosesForTreatment(
+          updatedTreatment,
+          startDate,
+          duration
+        );
+
+        for (const dose of newDoses) {
+          const scheduledTime = new Date(dose.scheduledAt);
+          if (scheduledTime > now) {
+            try {
+              await DoseRepository.create(dose);
+            } catch (error) {
+              // Skip duplicates
+            }
+          }
+        }
+
+        Utils.showToast("Tratamiento actualizado correctamente", "success");
+        closeModal();
+
+        await this.scheduleNotificationsForUser(currentUser.id);
+        await this.showHomeScreen();
+      } catch (error) {
+        Utils.showError("Error actualizando tratamiento: " + error.message);
+        console.error("Update treatment error:", error);
+      } finally {
+        if (submitButton) {
+          submitButton.disabled = false;
+        }
+      }
+    });
   }
 }
 
@@ -1861,7 +3057,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Global functions for HTML event handlers
 function editTreatment(treatmentId) {
-  Utils.showToast("Función de editar próximamente disponible", "warning");
+  if (app && app.editTreatment) {
+    app.editTreatment(treatmentId);
+  } else {
+    Utils.showError("Error: Aplicación no disponible");
+  }
 }
 
 // Service Worker communication
