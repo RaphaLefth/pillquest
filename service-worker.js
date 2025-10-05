@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // =============================================================================
 // PILLQUEST SERVICE WORKER
 // Cache-first strategy for offline functionality
@@ -26,6 +27,40 @@ const STATIC_ASSETS = [
   "./icons/icon-512.svg",
   "./i18n/es.json",
   "./i18n/en.json",
+=======
+const CACHE_NAME = "pillquest-v1";
+const urlsToCache = [
+  "./",
+  "./index.html",
+  "./styles/base.css",
+  "./styles/theme.css",
+  "./styles/components.css",
+  "./styles/animations.css",
+  "./js/app.js",
+  "./js/ui/screens/register.js",
+  "./js/ui/screens/home.js",
+  "./js/ui/screens/rewards.js",
+  "./js/ui/screens/shop.js",
+  "./js/ui/screens/settings.js",
+  "./js/ui/screens/leaderboard.js",
+  "./js/components/pillProgress.js",
+  "./js/components/timer.js",
+  "./js/components/toast.js",
+  "./js/components/badgeCard.js",
+  "./js/components/coinCounter.js",
+  "./js/core/storage/index.js",
+  "./js/core/storage/indexeddb.js",
+  "./js/logic/schedule.js",
+  "./js/logic/gamification.js",
+  "./js/logic/notifications.js",
+  "./i18n/i18n.js",
+  "./i18n/es.json",
+  "./i18n/en.json",
+  "./img/avatar/pill-happy.svg",
+  "./img/avatar/pill-sad.svg",
+  "./img/avatar/pill-sleep.svg",
+  "./manifest.webmanifest",
+>>>>>>> 72caf54 (Holi)
 ];
 
 // Network-first resources (fallback to cache)
@@ -104,6 +139,7 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(handleFetchRequest(event.request, pathname));
 });
 
+<<<<<<< HEAD
 // Push event - handle push notifications
 self.addEventListener("push", (event) => {
   console.log("Push notification received:", event);
@@ -134,6 +170,11 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification("PillQuest - Recordatorio", options)
   );
+=======
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(clients.openWindow("./"));
+>>>>>>> 72caf54 (Holi)
 });
 
 // Notification click event

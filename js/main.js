@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // =============================================================================
 // PILLQUEST PWA - MAIN APPLICATION
 // Vanilla JavaScript - No modules, no external dependencies
@@ -3250,4 +3251,888 @@ if ("serviceWorker" in navigator) {
       }
     }
   });
+=======
+// main.js - Consolidated PillQuest PWA (Pure JavaScript)
+
+// ====================
+// IndexedDB Implementation
+// ====================
+let db;
+
+const DB_NAME = "PillQuestDB";
+const DB_VERSION = 1;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      db = request.result;
+      resolve(db);
+    };
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains("users")) {
+        db.createObjectStore("users", { keyPath: "id", autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains("treatments")) {
+        db.createObjectStore("treatments", {
+          keyPath: "id",
+          autoIncrement: true,
+        });
+      }
+      if (!db.objectStoreNames.contains("doses")) {
+        db.createObjectStore("doses", { keyPath: "id", autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains("achievements")) {
+        db.createObjectStore("achievements", { keyPath: "code" });
+      }
+      if (!db.objectStoreNames.contains("userAchievements")) {
+        db.createObjectStore("userAchievements", {
+          keyPath: "id",
+          autoIncrement: true,
+        });
+      }
+      if (!db.objectStoreNames.contains("economy")) {
+        db.createObjectStore("economy", { keyPath: "userId" });
+      }
+      if (!db.objectStoreNames.contains("settings")) {
+        db.createObjectStore("settings", { keyPath: "userId" });
+      }
+      if (!db.objectStoreNames.contains("leaderboard")) {
+        db.createObjectStore("leaderboard", {
+          keyPath: "id",
+          autoIncrement: true,
+        });
+      }
+    };
+  });
+}
+
+function initAchievements() {
+  const achievements = [
+    {
+      code: "first_dose",
+      name: "Primera Dosis",
+      desc: "Tomaste tu primera pastilla",
+      icon: "🏆",
+    },
+    {
+      code: "week_streak",
+      name: "Semana Perfecta",
+      desc: "7 días seguidos",
+      icon: "🔥",
+    },
+    {
+      code: "month_streak",
+      name: "Mes Maestro",
+      desc: "30 días seguidos",
+      icon: "👑",
+    },
+    {
+      code: "no_miss",
+      name: "Impecable",
+      desc: "Nunca fallaste una dosis",
+      icon: "💎",
+    },
+    {
+      code: "morning_warrior",
+      name: "Guerrero Matutino",
+      desc: "Dosis matutinas puntuales",
+      icon: "🌅",
+    },
+    {
+      code: "night_owl",
+      name: "Búho Nocturno",
+      desc: "Dosis nocturnas puntuales",
+      icon: "🦉",
+    },
+    {
+      code: "consistent",
+      name: "Consistente",
+      desc: "3 tomas seguidas puntuales",
+      icon: "🎯",
+    },
+    {
+      code: "collector",
+      name: "Coleccionista",
+      desc: "Reúne todas las medallas",
+      icon: "🏅",
+    },
+  ];
+  return Promise.all(achievements.map((ach) => add("achievements", ach)));
+}
+
+function get(storeName, key) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([storeName], "readonly");
+    const store = transaction.objectStore(storeName);
+    const request = store.get(key);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function add(storeName, data) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([storeName], "readwrite");
+    const store = transaction.objectStore(storeName);
+    const request = store.add(data);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function put(storeName, data) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([storeName], "readwrite");
+    const store = transaction.objectStore(storeName);
+    const request = store.put(data);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function getAll(storeName) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([storeName], "readonly");
+    const store = transaction.objectStore(storeName);
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function where(storeName, indexName, value) {
+  return new Promise((resolve, reject) => {
+    try {
+      const transaction = db.transaction([storeName], "readonly");
+      const store = transaction.objectStore(storeName);
+
+      // If the index exists use it, otherwise fallback to getAll + filter
+      if (
+        store.indexNames &&
+        store.indexNames.contains &&
+        store.indexNames.contains(indexName)
+      ) {
+        const index = store.index(indexName);
+        const request = index.getAll(value);
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error);
+      } else {
+        // fallback: read all and filter by property
+        const request = store.getAll();
+        request.onsuccess = () => {
+          const all = request.result || [];
+          const filtered = all.filter(
+            (item) => item && item[indexName] === value
+          );
+          resolve(filtered);
+        };
+        request.onerror = () => reject(request.error);
+      }
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+// ====================
+// Storage Repositories
+// ====================
+class UsersRepo {
+  static async get(id) {
+    return await get("users", id);
+  }
+
+  static async add(user) {
+    return await add("users", user);
+  }
+
+  static async update(id, updates) {
+    const user = await this.get(id);
+    if (user) {
+      Object.assign(user, updates);
+      await put("users", user);
+      return 1;
+    }
+    return 0;
+  }
+}
+
+class TreatmentsRepo {
+  static async getAll(userId) {
+    return await where("treatments", "userId", userId);
+  }
+
+  static async add(treatment) {
+    return await add("treatments", treatment);
+  }
+
+  static async update(id, updates) {
+    const treatment = await get("treatments", id);
+    if (treatment) {
+      Object.assign(treatment, updates);
+      await put("treatments", treatment);
+      return 1;
+    }
+    return 0;
+  }
+
+  static async delete(id) {
+    return await this.update(id, { active: false });
+  }
+}
+
+class DosesRepo {
+  static async getPending(userId) {
+    const treatments = await TreatmentsRepo.getAll(userId);
+    const now = new Date();
+    const pending = [];
+    for (const treatment of treatments) {
+      if (!treatment.active) continue;
+      for (const time of treatment.times) {
+        const scheduledAt = new Date();
+        const [hours, minutes] = time.split(":");
+        scheduledAt.setHours(hours, minutes, 0, 0);
+        if (
+          scheduledAt <= now &&
+          scheduledAt > new Date(now.getTime() - 24 * 60 * 60 * 1000)
+        ) {
+          const allDoses = await getAll("doses");
+          const existing = allDoses.find(
+            (d) =>
+              d.treatmentId === treatment.id &&
+              d.scheduledAt === scheduledAt.getTime()
+          );
+          if (!existing) {
+            pending.push({
+              treatmentId: treatment.id,
+              scheduledAt: scheduledAt.getTime(),
+              status: "scheduled",
+            });
+          }
+        }
+      }
+    }
+    return pending;
+  }
+
+  static async markTaken(treatmentId, scheduledAt) {
+    const allDoses = await getAll("doses");
+    const dose = allDoses.find(
+      (d) => d.treatmentId === treatmentId && d.scheduledAt === scheduledAt
+    );
+    if (dose) {
+      dose.status = "taken";
+      dose.takenAt = Date.now();
+      await put("doses", dose);
+    } else {
+      await add("doses", {
+        treatmentId,
+        scheduledAt,
+        takenAt: Date.now(),
+        status: "taken",
+      });
+    }
+  }
+}
+
+class EconomyRepo {
+  static async get(userId) {
+    let economy = await get("economy", userId);
+    if (!economy) {
+      economy = {
+        id: userId,
+        userId,
+        coins: 0,
+        xp: 0,
+        streakCount: 0,
+        lastTakenDate: null,
+      };
+      await add("economy", economy);
+    }
+    return economy;
+  }
+
+  static async update(userId, updates) {
+    const economy = await this.get(userId);
+    Object.assign(economy, updates);
+    await put("economy", economy);
+    return 1;
+  }
+}
+
+class SettingsRepo {
+  static async get(userId) {
+    let settings = await get("settings", userId);
+    if (!settings) {
+      settings = {
+        id: userId,
+        userId,
+        notificationsEnabled: true,
+        language: "es",
+      };
+      await add("settings", settings);
+    }
+    return settings;
+  }
+
+  static async update(userId, updates) {
+    const settings = await this.get(userId);
+    Object.assign(settings, updates);
+    await put("settings", settings);
+    return 1;
+  }
+}
+
+// ====================
+// I18n
+// ====================
+let translations = {};
+
+async function initI18n() {
+  const lang = localStorage.getItem("language") || "es";
+  translations = await loadTranslations(lang);
+}
+
+async function loadTranslations(lang) {
+  try {
+    const response = await fetch(`./i18n/${lang}.json`);
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to load translations:", error);
+    return {};
+  }
+}
+
+function t(key) {
+  return translations[key] || key;
+}
+
+// ====================
+// Notifications
+// ====================
+let pushSubscription = null;
+
+async function initNotifications() {
+  if ("Notification" in window) {
+    const permission = await Notification.requestPermission();
+    if (permission === "granted") {
+      console.log("Notifications granted");
+    }
+  }
+
+  if ("serviceWorker" in navigator && "PushManager" in window) {
+    const registration = await navigator.serviceWorker.ready;
+    pushSubscription = await registration.pushManager.getSubscription();
+    if (!pushSubscription) {
+      // Subscribe to push
+      pushSubscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array("YOUR_VAPID_PUBLIC_KEY"), // Replace with actual key
+      });
+      // Send to server
+      await fetch("/subscribe", {
+        method: "POST",
+        body: JSON.stringify(pushSubscription),
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+  }
+}
+
+async function scheduleNotification(userId, treatment, time) {
+  const settings = await SettingsRepo.get(userId);
+  if (!settings.notificationsEnabled) return;
+
+  const [hours, minutes] = time.split(":");
+  const scheduledTime = new Date();
+  scheduledTime.setHours(hours, minutes, 0, 0);
+
+  if (scheduledTime > new Date()) {
+    const delay = scheduledTime - new Date();
+    setTimeout(() => {
+      showLocalNotification(
+        `Hora de tomar ${treatment.name}`,
+        "Recuerda tu dosis"
+      );
+    }, delay);
+  }
+}
+
+function showLocalNotification(title, body) {
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification(title, {
+      body,
+      icon: "./img/icons/icon-192.png",
+    });
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// ====================
+// Gamification Logic
+// ====================
+async function takeDose(userId) {
+  const economy = await EconomyRepo.get(userId);
+  const now = new Date();
+
+  // Update streak
+  const lastDate = economy.lastTakenDate
+    ? new Date(economy.lastTakenDate)
+    : null;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (!lastDate || lastDate < today) {
+    economy.streakCount += 1;
+    economy.lastTakenDate = now.getTime();
+  }
+
+  // Award XP and coins
+  economy.xp += 10;
+  economy.coins += 5;
+
+  await EconomyRepo.update(userId, economy);
+
+  // Check achievements
+  await checkAchievements(userId);
+
+  return { xp: 10, coins: 5, streak: economy.streakCount };
+}
+
+async function checkAchievements(userId) {
+  const economy = await EconomyRepo.get(userId);
+
+  if (economy.streakCount >= 7) {
+    await unlockAchievement(userId, "week_streak");
+  }
+  if (economy.streakCount >= 30) {
+    await unlockAchievement(userId, "month_streak");
+  }
+}
+
+async function unlockAchievement(userId, code) {
+  const existing = await get("userAchievements", `${userId}_${code}`);
+  if (!existing) {
+    await add("userAchievements", {
+      userId,
+      achievementId: code,
+      unlockedAt: Date.now(),
+    });
+    showToast(t("achievement_unlocked"));
+  }
+}
+
+// ====================
+// Schedule Logic
+// ====================
+function isWithinWindow(scheduledTime, windowMinutes = 60) {
+  const now = new Date();
+  const scheduled = new Date(scheduledTime);
+  const diff = Math.abs(now - scheduled);
+  return diff <= windowMinutes * 60 * 1000;
+}
+
+function getTimeUntilNextDose(userId) {
+  // Simplified implementation
+  return 3600000; // 1 hour
+}
+
+function formatTimeRemaining(ms) {
+  const hours = Math.floor(ms / (1000 * 60 * 60));
+  const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+  return `${hours}:${minutes.toString().padStart(2, "0")}`;
+}
+
+// ====================
+// UI Components
+// ====================
+function showToast(message, type = "success") {
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.classList.add("show"), 100);
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => document.body.removeChild(toast), 300);
+  }, 3000);
+}
+
+// ====================
+// Screens
+// ====================
+let currentScreen = null;
+const screens = {};
+
+function registerScreen(name, screenModule) {
+  screens[name] = screenModule;
+}
+
+function showScreen(name, data = {}) {
+  if (currentScreen && currentScreen.hide) {
+    currentScreen.hide();
+  }
+  const screen = screens[name];
+  if (screen && screen.show) {
+    screen.show(data);
+    currentScreen = screen;
+  }
+}
+
+// Register Screen
+function initRegisterScreen() {
+  const screenElement = document.createElement("div");
+  screenElement.className = "screen register-screen";
+  screenElement.innerHTML = `
+        <div class="card">
+            <h2>${t("register")}</h2>
+            <form id="register-form">
+                <div class="form-group">
+                    <label for="name">${t("name")}</label>
+                    <input type="text" id="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="username">${t("username")}</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">${t("email")}</label>
+                    <input type="email" id="email">
+                </div>
+                <div class="form-group">
+                    <label for="timezone">${t("timezone")}</label>
+                    <select id="timezone" required>
+                        <option value="America/New_York">Eastern Time</option>
+                        <option value="America/Chicago">Central Time</option>
+                        <option value="America/Denver">Mountain Time</option>
+                        <option value="America/Los_Angeles">Pacific Time</option>
+                        <option value="Europe/Madrid">Madrid</option>
+                        <option value="Europe/London">London</option>
+                    </select>
+                </div>
+                <h3>${t("add_treatment")}</h3>
+                <div class="form-group">
+                    <label for="treatment-name">${t("treatment_name")}</label>
+                    <input type="text" id="treatment-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="treatment-times">${t("treatment_times")}</label>
+                    <input type="text" id="treatment-times" placeholder="08:00,20:00" required>
+                </div>
+                <button type="submit" class="btn-primary">${t("save")}</button>
+            </form>
+        </div>
+    `;
+  document.getElementById("main-content").appendChild(screenElement);
+
+  document
+    .getElementById("register-form")
+    .addEventListener("submit", handleRegister);
+
+  return {
+    show: () => screenElement.classList.add("active"),
+    hide: () => screenElement.classList.remove("active"),
+  };
+}
+
+async function handleRegister(e) {
+  e.preventDefault();
+  const name = document.getElementById("name").value;
+  const username = document.getElementById("username").value;
+  const email = document.getElementById("email").value;
+  const tz = document.getElementById("timezone").value;
+  const treatmentName = document.getElementById("treatment-name").value;
+  const treatmentTimes = document
+    .getElementById("treatment-times")
+    .value.split(",")
+    .map((t) => t.trim());
+
+  try {
+    const userId = await UsersRepo.add({
+      name,
+      username,
+      email,
+      tz,
+      createdAt: Date.now(),
+    });
+
+    await TreatmentsRepo.add({
+      userId,
+      name: treatmentName,
+      scheduleType: "exact-times",
+      times: treatmentTimes,
+      active: true,
+      createdAt: Date.now(),
+    });
+
+    showScreen("home");
+  } catch (error) {
+    console.error("Registration failed:", error);
+    showToast(t("error"), "error");
+  }
+}
+
+// Home Screen
+function initHomeScreen() {
+  let screenElement;
+  let timerInterval;
+  let userId = 1;
+
+  screenElement = document.createElement("div");
+  screenElement.className = "screen home-screen";
+  screenElement.innerHTML = `
+        <div class="card">
+            <div class="pill-avatar" id="pill-avatar">💊</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+            </div>
+            <div class="streak" id="streak">🔥 0</div>
+            <div class="coin-counter" id="coins">🪙 0</div>
+            <div id="treatments-list"></div>
+            <button id="take-pill-btn" class="take-pill-btn btn-primary">${t(
+              "take_now"
+            )}</button>
+            <div class="timer" id="timer" style="display: none;"></div>
+        </div>
+        <nav>
+            <button onclick="showScreen('home')" class="btn-secondary">${t(
+              "home"
+            )}</button>
+            <button onclick="showScreen('rewards')" class="btn-secondary">${t(
+              "rewards"
+            )}</button>
+            <button onclick="showScreen('shop')" class="btn-secondary">${t(
+              "shop"
+            )}</button>
+            <button onclick="showScreen('settings')" class="btn-secondary">${t(
+              "settings"
+            )}</button>
+            <button onclick="showScreen('leaderboard')" class="btn-secondary">${t(
+              "leaderboard"
+            )}</button>
+        </nav>
+    `;
+  document.getElementById("main-content").appendChild(screenElement);
+
+  document
+    .getElementById("take-pill-btn")
+    .addEventListener("click", handleTakePill);
+
+  async function loadHomeData() {
+    const treatments = await TreatmentsRepo.getAll(userId);
+    const economy = await EconomyRepo.get(userId);
+
+    document.getElementById("streak").textContent = `🔥 ${economy.streakCount}`;
+    document.getElementById("coins").textContent = `🪙 ${economy.coins}`;
+
+    const treatmentsList = document.getElementById("treatments-list");
+    treatmentsList.innerHTML = "";
+    treatments.forEach((treatment) => {
+      const item = document.createElement("div");
+      item.className = "treatment-item";
+      item.innerHTML = `
+                <div class="info">
+                    <strong>${treatment.name}</strong>
+                    <div>${treatment.times.join(", ")}</div>
+                </div>
+            `;
+      treatmentsList.appendChild(item);
+    });
+  }
+
+  async function handleTakePill() {
+    try {
+      const result = await takeDose(userId);
+      showToast(t("dose_taken"));
+      document.getElementById("take-pill-btn").classList.add("success-flash");
+      setTimeout(
+        () =>
+          document
+            .getElementById("take-pill-btn")
+            .classList.remove("success-flash"),
+        500
+      );
+      loadHomeData();
+    } catch (error) {
+      showToast(t("error"), "error");
+    }
+  }
+
+  return {
+    show: () => {
+      screenElement.classList.add("active");
+      loadHomeData();
+    },
+    hide: () => {
+      screenElement.classList.remove("active");
+      if (timerInterval) clearInterval(timerInterval);
+    },
+  };
+}
+
+// Placeholder screens
+function createPlaceholderScreen(title) {
+  const screenElement = document.createElement("div");
+  screenElement.className = "screen";
+  screenElement.innerHTML = `
+        <div class="card">
+            <h2>${title}</h2>
+            <p>Esta pantalla está en desarrollo.</p>
+            <nav style="margin-top: 20px;">
+                <button onclick="showScreen('home')" class="btn-secondary">${t(
+                  "home"
+                )}</button>
+                <button onclick="showScreen('rewards')" class="btn-secondary">${t(
+                  "rewards"
+                )}</button>
+                <button onclick="showScreen('shop')" class="btn-secondary">${t(
+                  "shop"
+                )}</button>
+                <button onclick="showScreen('settings')" class="btn-secondary">${t(
+                  "settings"
+                )}</button>
+                <button onclick="showScreen('leaderboard')" class="btn-secondary">${t(
+                  "leaderboard"
+                )}</button>
+            </nav>
+        </div>
+    `;
+  document.getElementById("main-content").appendChild(screenElement);
+
+  return {
+    show: () => screenElement.classList.add("active"),
+    hide: () => screenElement.classList.remove("active"),
+  };
+}
+
+// ====================
+// App Initialization
+// ====================
+async function initStorage() {
+  db = await openDB();
+  await initAchievements();
+  console.log("Database initialized");
+}
+
+function initRouter() {
+  window.addEventListener("hashchange", handleRoute);
+}
+
+function handleRoute() {
+  const hash = window.location.hash.slice(1);
+  if (!hash) return; // Don't route if no hash
+  const [screen, params] = hash.split("?");
+  showScreen(screen, parseParams(params));
+}
+
+function parseParams(params) {
+  if (!params) return {};
+  return params.split("&").reduce((acc, pair) => {
+    const [key, value] = pair.split("=");
+    acc[key] = decodeURIComponent(value);
+    return acc;
+  }, {});
+}
+
+async function initApp() {
+  try {
+    await initStorage();
+    await initI18n();
+    await initNotifications();
+
+    // Register service worker
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./service-worker.js", {
+        scope: "./",
+      });
+    }
+
+    // Initialize screens
+    registerScreen("register", initRegisterScreen());
+    registerScreen("home", initHomeScreen());
+    registerScreen("rewards", createPlaceholderScreen("Recompensas"));
+    registerScreen("shop", createPlaceholderScreen("Tienda"));
+    registerScreen("settings", createPlaceholderScreen("Ajustes"));
+    registerScreen(
+      "leaderboard",
+      createPlaceholderScreen("Tabla de posiciones")
+    );
+
+    // Check if user exists BEFORE initializing router
+    const user = await UsersRepo.get(1);
+
+    // Clear any existing hash to prevent conflicts
+    if (window.location.hash) {
+      window.history.replaceState(null, null, window.location.pathname);
+    }
+
+    // Show appropriate initial screen
+    if (!user) {
+      showScreen("register");
+    } else {
+      showScreen("home");
+    }
+
+    // Initialize router AFTER showing initial screen
+    initRouter();
+  } catch (error) {
+    console.error("Error initializing app:", error);
+  }
+}
+
+// Global functions
+window.showScreen = showScreen;
+
+// Start the app
+window.addEventListener("load", initApp);
+
+// Global error overlay for debugging (visible on blank screen)
+window.addEventListener("error", function (e) {
+  console.error("Global error caught:", e.error || e.message || e);
+  showRuntimeError(e.error || e.message || String(e));
+});
+
+window.addEventListener("unhandledrejection", function (e) {
+  console.error("Unhandled rejection:", e.reason);
+  showRuntimeError(e.reason || String(e));
+});
+
+function showRuntimeError(err) {
+  let overlay = document.getElementById("error-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "error-overlay";
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.right = "0";
+    overlay.style.bottom = "0";
+    overlay.style.background = "rgba(0,0,0,0.75)";
+    overlay.style.color = "white";
+    overlay.style.zIndex = "9999";
+    overlay.style.padding = "20px";
+    overlay.style.overflow = "auto";
+    overlay.style.fontFamily = "monospace";
+    overlay.innerHTML =
+      '<h2 style="margin-top:0">Runtime Error</h2><pre id="error-text"></pre><button id="error-close">Cerrar</button>';
+    document.body.appendChild(overlay);
+    document
+      .getElementById("error-close")
+      .addEventListener("click", () => overlay.remove());
+  }
+  const txt = document.getElementById("error-text");
+  txt.textContent = err && err.stack ? err.stack : String(err);
+>>>>>>> 72caf54 (Holi)
 }
